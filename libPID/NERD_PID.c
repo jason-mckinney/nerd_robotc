@@ -2,9 +2,9 @@
 
 //initialize PID structure, set parameters
 //
-//arguments: pointer to PID structure, kP constant, kI constant, kD constant, 
+//arguments: pointer to PID structure, kP constant, kI constant, kD constant,
 //             EpsilonInner, EpsilonOuter constants (inner and outer ranges of set point in which to stop summing for I component)
-void 
+void
 pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter){
 	pPID->m_fKP = fKP;
 	pPID->m_fKI = fKI;
@@ -21,7 +21,7 @@ pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
 //
 //returns: output value constrained between -127 and 127
 //arguments: pointer to PID structure, set point, sensor value or process variable
-float 
+float
 pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 	float fDeltaTime = (float)(nPgmTime - pPID->m_uliLastTime) / 1000.0;
 	pPID->m_uliLastTime = nPgmTime;
@@ -34,11 +34,11 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 	float fError = fSetPoint - fProcessVariable;
 	pPID->m_fLastSetPoint = fSetPoint;
 
-	if(abs(fError) > pPID->m_fEpsilonInner && abs(fError) < pPID->m_fEpsilonOuter)
+	if(fabs(fError) > pPID->m_fEpsilonInner && abs(fError) < pPID->m_fEpsilonOuter)
 		pPID->m_fSigma += fError * fDeltaTime;
 
-	float output = fError * pPID->mfKP 
-					+ pPID->m_fSigma * pPID->m_fKI 
+	float output = fError * pPID->m_fKP
+					+ pPID->m_fSigma * pPID->m_fKI
 					- fDeltaPV * pPID->m_fKD;
 
 	output = abs(output) > 127 ? 127 * output/abs(output) : output;

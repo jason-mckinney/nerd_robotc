@@ -14,22 +14,22 @@ Gyro gyro;
 PID gyroPid;
 
 //power left drive motors
-void driveL(int val)
-{
+void
+driveL(int val){
 	val = abs(val) > 127 ? 127 * val/abs(val) : val;
 	motor[port2] = val;
 }
 
 //power right drive motors
-void driveR(int val)
-{
+void
+driveR(int val){
 	val = abs(val) > 127 ? 127 * val/abs(val) : val;
 	motor[port3] = val;
 }
 
 //gyro turn to target angle
-void gyroTurn(float fTarget)
-{
+void
+gyroTurn(float fTarget){
 	if(abs(fTarget) < 40)
 		pidInit(gyroPid, 3.0, 0.0, 0.15, 3.0, 30.0);
 	bool bAtGyro = false;
@@ -37,15 +37,14 @@ void gyroTurn(float fTarget)
 	long liTimer = nPgmTime;
 	float fGyroAngle = 0;
 
-	while(!bAtGyro)
-	{
+	while(!bAtGyro){
 		//Calculate the delta time from the last iteration of the loop
-		float fDeltaTime = (float)(nPgmTime - fTimer)/1000.0;
+		float fDeltaTime = (float)(nPgmTime - liTimer)/1000.0;
 		//Reset loop timer
-		timer = nPgmTime;
+		liTimer = nPgmTime;
 
 		fGyroAngle += gyroGetRate(gyro) * fDeltaTime;
-		
+
 		//Calculate the output of the PID controller and output to drive motors
 		float driveOut = pidCalculate(gyroPid, fTarget, fGyroAngle);
 		driveL(-driveOut);
@@ -54,25 +53,24 @@ void gyroTurn(float fTarget)
 		//Stop the turn function when the angle has been within 3 degrees of the desired angle for 350ms
 		if(abs(fTarget - fGyroAngle) > 3)
 			liAtTargetTime = nPgmTime;
-		if(nPgmTime - liAtTargetTime > 350)
-		{
+		if(nPgmTime - liAtTargetTime > 350){
 			bAtGyro = true;
 			driveL(0);
 			driveR(0);
 		}
 	}
-	
+
 	//Reinitialize the PID constants to their original values in case they were changed
 	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
 }
 
 //Calibrate gyro and initialize PID controller
-void pre_auton()
-{
+void
+pre_auton(){
 	//Allow gyro to settle and then init/calibrate (Takes a total of around 2 seconds)
 	delay(1100);
-	gyroInit(gyro);
-	
+	gyroInit(gyro, 1);
+
 	/*Initialize PID controller for gyro
 	 * kP = 2, kI = 0, kD = 0.15
 	 * epsilon = 0
@@ -80,12 +78,12 @@ void pre_auton()
 	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
 }
 
-task autonomous()
-{
+task
+autonomous(){
 	//Turn the robot by the desired angle
 	gyroTurn(SET_ANGLE);
 }
 
-task usercontrol()
-{
+task
+usercontrol(){
 }

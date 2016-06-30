@@ -13,7 +13,4 @@ typedef struct{
 	float m_fLastSetPoint;
 } SPID, *PID;
 
-void pidInit(PID, float, float, float, float, float); //SPID*, kP, kI, kD, EpsilonInner, EpsilonOuter
-float pidCalculate(PID, float, float); //SPID*, setPoint, processVariable
-
 #endif
