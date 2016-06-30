@@ -11,7 +11,8 @@
 #define SET_ANGLE 90
 
 Gyro gyro;
-PID gyroPid;
+PID gyroRatePid; //inner PID loop
+PID gyroAnglePid; //outer PID loop
 
 //power left drive motors
 void driveL(int val)
@@ -30,8 +31,6 @@ void driveR(int val)
 //gyro turn to target angle
 void gyroTurn(float fTarget)
 {
-	if(abs(fTarget) < 40)
-		pidInit(gyroPid, 3.0, 0.0, 0.15, 3.0, 30.0);
 	bool bAtGyro = false;
 	long liAtTargetTime = nPgmTime;
 	long liTimer = nPgmTime;
@@ -44,10 +43,12 @@ void gyroTurn(float fTarget)
 		//Reset loop timer
 		timer = nPgmTime;
 
-		fGyroAngle += gyroGetRate(gyro) * fDeltaTime;
+		float fGyroRate = gyroGetRate(gyro);
+		fGyroAngle +=  fGyroRate * fDeltaTime;
 		
 		//Calculate the output of the PID controller and output to drive motors
-		float driveOut = pidCalculate(gyroPid, fTarget, fGyroAngle);
+		float driveOut = pidCalculate(gyroRatePid, pidCalculate(gyroAnglePid, fTarget, fGyroAngle), fGyroRate);
+		
 		driveL(-driveOut);
 		driveR(driveOut);
 
@@ -61,23 +62,18 @@ void gyroTurn(float fTarget)
 			driveR(0);
 		}
 	}
-	
-	//Reinitialize the PID constants to their original values in case they were changed
-	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
 }
 
-//Calibrate gyro and initialize PID controller
+//Calibrate gyro and initialize PID controllers
 void pre_auton()
 {
 	//Allow gyro to settle and then init/calibrate (Takes a total of around 2 seconds)
 	delay(1100);
 	gyroInit(gyro);
 	
-	/*Initialize PID controller for gyro
-	 * kP = 2, kI = 0, kD = 0.15
-	 * epsilon = 0
-	*/
-	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
+	//These NEED to be tuned
+	pidInit(gyroAnglePid, 2, 0, 0.15, 2, 20.0); //No idea if these are any good, they need to be tuned a TON
+	pidInit(gyroRatePid, 10, 0, 0, 0, 360.00); //need to be tuned
 }
 
 task autonomous()
