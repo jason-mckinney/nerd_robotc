@@ -23,7 +23,7 @@ pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
 //arguments: pointer to PID structure, set point, sensor value or process variable
 float 
 pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
-	float fDeltaTime = (float)(nPgmTime - m_uliLastTime) / 1000.0;
+	float fDeltaTime = (float)(nPgmTime - pPID->m_uliLastTime) / 1000.0;
 	pPID->m_uliLastTime = nPgmTime;
 
 	float fDeltaPV = 0;
