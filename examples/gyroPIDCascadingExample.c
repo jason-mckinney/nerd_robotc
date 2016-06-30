@@ -46,7 +46,12 @@ void gyroTurn(float fTarget)
 		float fGyroRate = gyroGetRate(gyro);
 		fGyroAngle +=  fGyroRate * fDeltaTime;
 		
-		//Calculate the output of the PID controller and output to drive motors
+		//					  -------------------------------<-
+		//					 |				| 				 
+		//				 fgyroAngle 	fgyroRate 			 	Physical System
+		//					 v				v 				 
+		// fTarget -> gyroAnglePID -> gyroRatePID -> motors--->
+		//
 		float driveOut = pidCalculate(gyroRatePid, pidCalculate(gyroAnglePid, fTarget, fGyroAngle), fGyroRate);
 		
 		driveL(-driveOut);
