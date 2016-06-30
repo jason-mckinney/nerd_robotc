@@ -9,6 +9,7 @@ typedef struct{
 	float m_fSigma;
 	float m_fLastValue;
 	unsigned long m_uliLastTime;
+	float m_fLastSetPoint;
 } SPID, *PID;
 
 void pidInit(PID, float, float, float, float); //SPID*, kP, kI, kD, Epsilon
