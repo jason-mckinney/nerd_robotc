@@ -42,4 +42,5 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 					- fDeltaPV * pPID->m_fKD;
 
 	output = abs(output) > 127 ? 127 * output/abs(output) : output;
+	return output;
 }
