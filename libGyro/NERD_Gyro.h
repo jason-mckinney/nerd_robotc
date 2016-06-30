@@ -1,7 +1,7 @@
 #ifndef NERD_Gyro_h
 #define NERD_Gyro_h
 
-#define GYRO_MULTIPLIER 0.00072799 //1.1mV/dps / 1.511
+#define GYRO_MULTIPLIER 0.00072799 // = (1.1mV/dps / 1.511) (3.3V sensor stepped up to 5v, so I scale it back to datasheet specs)
 #define GYRO_STD_DEVS 2 //ignore data within 2 standard deviations of no motion average
 #define GYRO_CALIBRATION_POINTS 2000 //points or time in mSec that the gyro calibrates for
 

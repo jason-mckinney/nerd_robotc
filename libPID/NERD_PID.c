@@ -1,6 +1,11 @@
 #include "NERD_PID.h"
 
-void pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilon){
+//initialize PID structure, set parameters
+//
+//arguments: pointer to PID structure, kP constant, kI constant, kD constant, 
+//             Epsilon constant (range of set point in which to stop summing for I component)
+void 
+pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilon){
 	pPID->m_fKP = fKP;
 	pPID->m_fKI = fKI;
 	pPID->m_fKD = fKD;
@@ -10,7 +15,12 @@ void pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilon){
 	pPID->m_uliLastTime = nPgmTime;
 }
 
-float pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
+//calculate PID output
+//
+//returns: output value constrained between -127 and 127
+//arguments: pointer to PID structure, set point, sensor value or process variable
+float 
+pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 	float fDeltaTime = (float)(nPgmTime - m_uliLastTime) / 1000.0;
 	pPID->m_uliLastTime = nPgmTime;
 
