@@ -37,5 +37,5 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 					+ pPID->m_fSigma * pPID->m_fKI 
 					+ fDeltaPV * pPID->m_fKD;
 
-	output = abs(output) > 127 ? abs(output)/output * output : output;
+	output = abs(output) > 127 ? 127 * output/abs(output) : output;
 }
