@@ -31,7 +31,7 @@ void driveR(int val)
 void gyroTurn(float fTarget)
 {
 	if(abs(fTarget) < 40)
-		pidInit(gyroPid, 3.0, 0.0, 0.15, 3.0);
+		pidInit(gyroPid, 3.0, 0.0, 0.15, 3.0, 30.0);
 	bool bAtGyro = false;
 	long liAtTargetTime = nPgmTime;
 	long liTimer = nPgmTime;
@@ -63,7 +63,7 @@ void gyroTurn(float fTarget)
 	}
 	
 	//Reinitialize the PID constants to their original values in case they were changed
-	pidInit(gyroPid, 2, 0, 0.15, 2);
+	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
 }
 
 //Calibrate gyro and initialize PID controller
@@ -77,7 +77,7 @@ void pre_auton()
 	 * kP = 2, kI = 0, kD = 0.15
 	 * epsilon = 0
 	*/
-	pidInit(gyroPid, 2, 0, 0.15, 0);
+	pidInit(gyroPid, 2, 0, 0.15, 2, 20.0);
 }
 
 task autonomous()
