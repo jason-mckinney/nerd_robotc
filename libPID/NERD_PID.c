@@ -3,13 +3,14 @@
 //initialize PID structure, set parameters
 //
 //arguments: pointer to PID structure, kP constant, kI constant, kD constant, 
-//             Epsilon constant (range of set point in which to stop summing for I component)
+//             EpsilonInner, EpsilonOuter constants (inner and outer ranges of set point in which to stop summing for I component)
 void 
-pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilon){
+pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter){
 	pPID->m_fKP = fKP;
 	pPID->m_fKI = fKI;
 	pPID->m_fKD = fKD;
-	pPID->m_fEpsilon = fEpsilon;
+	pPID->m_fEpsilonInner = fEpsilonInner;
+	pPID->m_fEpsilonOuter = fEpsilonOuter;
 	pPID->m_fSigma = 0;
 	pPID->m_fLastValue = 0;
 	pPID->m_uliLastTime = nPgmTime;
@@ -31,17 +32,14 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 	pPID->m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
-
-	if(fSetPoint != pPID->m_fLastSetPoint)
-		pPID->m_fSigma = 0;
 	pPID->m_fLastSetPoint = fSetPoint;
 
-	if(abs(fError) > pPID->m_fEpsilon)
+	if(abs(fError) > pPID->m_fEpsilonInner && abs(fError) < pPID->m_fEpsilonOuter)
 		pPID->m_fSigma += fError * fDeltaTime;
 
 	float output = fError * pPID->mfKP 
 					+ pPID->m_fSigma * pPID->m_fKI 
-					+ fDeltaPV * pPID->m_fKD;
+					- fDeltaPV * pPID->m_fKD;
 
 	output = abs(output) > 127 ? 127 * output/abs(output) : output;
 }
