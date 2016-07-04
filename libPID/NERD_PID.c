@@ -14,7 +14,6 @@ pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
 	pPID->m_fSigma = 0;
 	pPID->m_fLastValue = 0;
 	pPID->m_uliLastTime = nPgmTime;
-	pPID->m_fLastSetPoint = 0;
 }
 
 //calculate PID output
@@ -32,15 +31,14 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 	pPID->m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
-	pPID->m_fLastSetPoint = fSetPoint;
 
 	if(fabs(fError) > pPID->m_fEpsilonInner && abs(fError) < pPID->m_fEpsilonOuter)
 		pPID->m_fSigma += fError * fDeltaTime;
 
-	float output = fError * pPID->m_fKP
+	float fOutput = fError * pPID->m_fKP
 					+ pPID->m_fSigma * pPID->m_fKI
 					- fDeltaPV * pPID->m_fKD;
 
-	output = abs(output) > 127 ? 127 * output/abs(output) : output;
-	return output;
+	fOutput = abs(fOutput) > 127 ? 127 * fOutput/abs(fOutput) : fOutput;
+	return fOutput;
 }
