@@ -32,7 +32,7 @@ pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
 
 	float fError = fSetPoint - fProcessVariable;
 
-	if(fabs(fError) > pPID->m_fEpsilonInner && abs(fError) < pPID->m_fEpsilonOuter)
+	if(fabs(fError) > pPID->m_fEpsilonInner && fabs(fError) < pPID->m_fEpsilonOuter)
 		pPID->m_fSigma += fError * fDeltaTime;
 
 	float fOutput = fError * pPID->m_fKP
