@@ -1,6 +1,6 @@
 #include "NERD_Gyro.h"
 
-#define GYRO_MULTIPLIER 601.64851693640575 // = (1.1mV/dps / 1.511) (3.3V sensor stepped up to 5v, so I scale it back to datasheet specs)
+#define GYRO_MULTIPLIER 0.73461357377273 // = (1.1mV/dps / 1.511) (3.3V sensor stepped up to 5v, so I scale it back to datasheet specs)
 #define GYRO_STD_DEVS 3 //ignore data within 2 standard deviations of no motion average
 #define GYRO_CALIBRATION_POINTS 2000 //points or time in mSec that the gyro calibrates for
 
@@ -11,8 +11,8 @@ float rgfRates[GYRO_CALIBRATION_POINTS];
 //returns: raw gyro rate, in degrees per second
 //arguments: pointer to Gyro structure
 float
-gyroGetRawRate(Gyro pGyro){
-	float fGyroRate = ((float)SensorValue(in1) * 5 / (4095*1.511))/0.0011; //Multiplier to scale gyro values to 0-4096
+gyroGetRawRate (Gyro pGyro) {
+	float fGyroRate = (float) SensorValue (in1) * GYRO_MULTIPLIER; //Multiplier to scale gyro values to 0-4095
 	return fGyroRate;
 }
 
@@ -62,11 +62,9 @@ gyroInit(Gyro pGyro, int iPortNum){
 //arguments: pointer to gyro structure
 float
 gyroGetRate(Gyro pGyro){
-	float fGyroRate = gyroGetRawRate(pGyro);
+	float fGyroRate = gyroGetRate(pGyro);
 
-	if(abs(fGyroRate)
-		> pGyro->m_config.m_fAvg
-			+ 2)
+	if(fabs (fGyroRate - pGyro->m_config.m_fAvg) > pGyro->m_config.m_fStdDev)
 		return fGyroRate - pGyro->m_config.m_fAvg;
 
 	return 0;
