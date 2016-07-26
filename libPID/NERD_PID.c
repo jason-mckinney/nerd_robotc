@@ -1,43 +1,54 @@
-#include "NERD_PID.h"
+#include "NERD_pid.h"
 
-//initialize PID structure, set parameters
-//
-//arguments: pointer to PID structure, kP constant, kI constant, kD constant,
-//             EpsilonInner, EpsilonOuter constants (inner and outer ranges of set point in which to stop summing for I component)
+/**
+ * initialize pid structure, set parameters
+ *
+ * @param pid instance of PID structure
+ * @param fKP PID KP constant
+ * @param fKI PID KI constant
+ * @param fKD PID KD constant
+ * @param fEpsilonInner inner bound of PID I summing cutoff
+ * @param fEpsilonOuter outer bounf of PID I summing cutoff
+ */
 void
-pidInit(PID pPID, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter){
-	pPID->m_fKP = fKP;
-	pPID->m_fKI = fKI;
-	pPID->m_fKD = fKD;
-	pPID->m_fEpsilonInner = fEpsilonInner;
-	pPID->m_fEpsilonOuter = fEpsilonOuter;
-	pPID->m_fSigma = 0;
-	pPID->m_fLastValue = 0;
-	pPID->m_uliLastTime = nPgmTime;
+pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter) {
+	pid.m_fKP = fKP;
+	pid.m_fKI = fKI;
+	pid.m_fKD = fKD;
+	pid.m_fEpsilonInner = fEpsilonInner;
+	pid.m_fEpsilonOuter = fEpsilonOuter;
+	pid.m_fSigma = 0;
+	pid.m_fLastValue = 0;
+	pid.m_uliLastTime = nPgmTime;
 }
 
-//calculate PID output
-//
-//returns: output value constrained between -127 and 127
-//arguments: pointer to PID structure, set point, sensor value or process variable
+/**
+ * calculate pid output
+ *
+ * @param pid instance of PID structure
+ * @param fSetPoint set point of PID controller
+ * @param fProcessVariable sensor/feedback value
+ *
+ * @return output value constrained from -127 to 127
+ */
 float
-pidCalculate(PID pPID, float fSetPoint, float fProcessVariable){
-	float fDeltaTime = (float)(nPgmTime - pPID->m_uliLastTime) / 1000.0;
-	pPID->m_uliLastTime = nPgmTime;
+pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
+	float fDeltaTime = (float)(nPgmTime - pid.m_uliLastTime) / 1000.0;
+	pid.m_uliLastTime = nPgmTime;
 
 	float fDeltaPV = 0;
 	if(fDeltaTime > 0)
-		fDeltaPV = (fProcessVariable - pPID->m_fLastValue) / fDeltaTime;
-	pPID->m_fLastValue = fProcessVariable;
+		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime;
+	pid.m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
 
-	if(fabs(fError) > pPID->m_fEpsilonInner && fabs(fError) < pPID->m_fEpsilonOuter)
-		pPID->m_fSigma += fError * fDeltaTime;
+	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
+		pid.m_fSigma += fError * fDeltaTime;
 
-	float fOutput = fError * pPID->m_fKP
-					+ pPID->m_fSigma * pPID->m_fKI
-					- fDeltaPV * pPID->m_fKD;
+	float fOutput = fError * pid.m_fKP
+					+ pid.m_fSigma * pid.m_fKI
+					- fDeltaPV * pid.m_fKD;
 
 	fOutput = abs(fOutput) > 127 ? 127 * fOutput/abs(fOutput) : fOutput;
 	return fOutput;

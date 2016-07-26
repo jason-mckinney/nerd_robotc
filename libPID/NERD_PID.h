@@ -11,6 +11,6 @@ typedef struct{
 	float m_fLastValue;
 	unsigned long m_uliLastTime;
 	float m_fLastSetPoint;
-} SPID, *PID;
+} PID;
 
 #endif

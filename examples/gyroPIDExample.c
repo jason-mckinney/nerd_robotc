@@ -13,28 +13,38 @@
 
 #define SET_ANGLE 90
 
-SGyro gyro;
-SPID gyroPid;
+Gyro gyro;
+PID gyroPID;
 
-//power left drive motors
+/**
+ * power left drive motors
+ */
 void
 driveL(int val){
 	val = abs(val) > 127 ? 127 * val/abs(val) : val;
 	motor[port2] = val;
 }
 
-//power right drive motors
+/**
+ * power right drive motors
+ *
+ * @param val value to set drive to
+ */
 void
 driveR(int val){
 	val = abs(val) > 127 ? 127 * val/abs(val) : val;
 	motor[port3] = val;
 }
 
-//gyro turn to target angle
+/**
+ * gyro turn to target angle
+ *
+ * @param fTarget target value of gyro turn (in degrees)
+ */
 void
 gyroTurn(float fTarget){
 	if(abs(fTarget) < 40)
-		pidInit(&gyroPid, 3.0, 0.0, 0.15, 3.0, 30.0);
+		pidInit(gyroPID, 3.0, 0.0, 0.15, 3.0, 30.0);
 	bool bAtGyro = false;
 	long liAtTargetTime = nPgmTime;
 	long liTimer = nPgmTime;
@@ -46,10 +56,10 @@ gyroTurn(float fTarget){
 		//Reset loop timer
 		liTimer = nPgmTime;
 
-		fGyroAngle += gyroGetRate(&gyro) * fDeltaTime;
+		fGyroAngle += gyroGetRate(gyro) * fDeltaTime;
 
 		//Calculate the output of the PID controller and output to drive motors
-		float driveOut = pidCalculate(&gyroPid, fTarget, fGyroAngle);
+		float driveOut = pidCalculate(gyroPID, fTarget, fGyroAngle);
 		driveL(-driveOut);
 		driveR(driveOut);
 
@@ -64,15 +74,17 @@ gyroTurn(float fTarget){
 	}
 
 	//Reinitialize the PID constants to their original values in case they were changed
-	pidInit(&gyroPid, 2, 0, 0.15, 2, 20.0);
+	pidInit(gyroPID, 2, 0, 0.15, 2, 20.0);
 }
 
-//Calibrate gyro and initialize PID controller
+/**
+ * Calibrate gyro and initialize PID controller
+ */
 void
 pre_auton(){
 	//Allow gyro to settle and then init/calibrate (Takes a total of around 2 seconds)
 	delay(1100);
-	gyroInit(&gyro, 2);
+	gyroInit(gyro, 2);
 
 	/*Initialize PID controller for gyro
 	 * kP = 2, kI = 0, kD = 0.15
@@ -92,7 +104,7 @@ float fGyroAngle;
 task
 usercontrol(){
 	delay(1100);
-	gyroInit(&gyro, in1);
+	gyroInit(gyro, in1);
 
 
 	long liTimer = nPgmTime;
@@ -101,7 +113,7 @@ usercontrol(){
 		float fDeltaTime = nPgmTime - liTimer;
 		liTimer = nPgmTime;
 
-		fGyroAngle += gyroGetRate(&gyro) * fDeltaTime;
+		fGyroAngle += gyroGetRate(gyro) * fDeltaTime;
 		delay(1);
 	}
 }
