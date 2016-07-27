@@ -4,6 +4,7 @@
 struct SGyroConfig{
 	float m_fStdDev;
 	float m_fAvg;
+	float m_fDegreesPerVolt;
 };
 
 typedef struct {

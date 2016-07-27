@@ -1,28 +1,12 @@
 #include "NERD_Gyro.h"
 
-// = (1.1mV/dps / 1.511) (3.3V sensor stepped up to 5v, so I scale it back to datasheet specs)
-#define GYRO_MULTIPLIER 0.73461357377273
-
-//ignore data within 2 standard deviations of no motion average
-#define GYRO_STD_DEVS 3
+//ignore data within n standard deviations of no motion average
+#define GYRO_STD_DEVS 5
 
 //points or time in mSec that the gyro calibrates for
 #define GYRO_CALIBRATION_POINTS 2000
 
-float rgfRates[GYRO_CALIBRATION_POINTS];
-
-/**
- * calculate raw gyro rate, in degrees per second
- *
- * @param gyro instance of gyro structure
- *
- * @return raw gyro rate, in degrees per second
- */
-float
-gyroGetRawRate (Gyro gyro) {
-	float fGyroRate = (float) SensorValue (in1) * GYRO_MULTIPLIER; //Multiplier to scale gyro values to 0-4095
-	return fGyroRate;
-}
+float rgfRaw[GYRO_CALIBRATION_POINTS];
 
 /**
  * generate calibration data for the gyro by collecting
@@ -32,27 +16,28 @@ gyroGetRawRate (Gyro gyro) {
  */
 void
 gyroCalibrate (Gyro gyro){
-	float fRateAverage = 0.0;
+	float fRawAverage = 0.0;
 	float fStdDev = 0.0;
 	//float rgfRates[GYRO_CALIBRATION_POINTS];
 
 	//calculate average gyro reading with no motion
 	for(int i = 0; i < GYRO_CALIBRATION_POINTS; ++i){
-		float fRate = gyroGetRawRate (gyro);
-		fRateAverage += fRate;
-		rgfRates [i] = fRate;
+		float fRaw = SensorValue (gyro.m_iPortNum);
+		fRawAverage += fRaw;
+		rgfRaw [i] = fRaw;
 		delay (1);
 	}
-	fRateAverage /= GYRO_CALIBRATION_POINTS;
-	gyro.m_config.m_fAvg = fRateAverage;
+	fRawAverage /= GYRO_CALIBRATION_POINTS;
+	gyro.m_config.m_fAvg = fRawAverage;
 
 	//calcuate the standard devation, or the average distance
 	//from the average on the data read
 	for (int i = 0; i < GYRO_CALIBRATION_POINTS; ++i)
-		fStdDev += fabs (fRateAverage - rgfRates [i]);
-	fStdDev /= GYRO_CALIBRATION_POINTS;
+		fStdDev += fabs (fRawAverage - rgfRaw [i]);
+	fStdDev /= (float) GYRO_CALIBRATION_POINTS;
 
 	gyro.m_config.m_fStdDev = fStdDev;
+	gyro.m_config.m_fVoltsPerDPS = (0.0011 * (fRawAverage*5/4095)/1.71625741);
 }
 
 /**
@@ -78,10 +63,10 @@ gyroInit (Gyro gyro, int iPortNum) {
  */
 float
 gyroGetRate (Gyro gyro){
-	float fGyroRate = gyroGetRate (gyro);
-
-	if (fabs (fGyroRate - gyro.m_config.m_fAvg) > gyro.m_config.m_fStdDev)
-		return fGyroRate - gyro.m_config.m_fAvg;
+	float fGyroRead = SensorValue (gyro.m_iPortNum);
+	
+	if (fabs (fGyroRead - gyro.m_config.m_fAvg) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev) 
+		return (fGyroRead - gyro.m_config.m_fAvg) * 0.001221 / gyro.m_config.m_fVoltsPerDPS;
 
 	return 0;
 }

@@ -84,7 +84,7 @@ void
 pre_auton(){
 	//Allow gyro to settle and then init/calibrate (Takes a total of around 2 seconds)
 	delay(1100);
-	gyroInit(gyro, 2);
+	gyroInit(gyro, in1);
 
 	/*Initialize PID controller for gyro
 	 * kP = 2, kI = 0, kD = 0.15
@@ -103,17 +103,21 @@ float fGyroAngle;
 
 task
 usercontrol(){
-	delay(1100);
-	gyroInit(gyro, in1);
-
+	//delay(1100);
+	//gyroInit(gyro, in1);
 
 	long liTimer = nPgmTime;
+	long printTimer = nPgmTime;
 	fGyroAngle = 0;
 	while (true) {
-		float fDeltaTime = nPgmTime - liTimer;
+		float fDeltaTime = (nPgmTime - liTimer) / 1000.0;
 		liTimer = nPgmTime;
 
-		fGyroAngle += gyroGetRate(gyro) * fDeltaTime;
-		delay(1);
+		fGyroAngle -= gyroGetRate(gyro)* fDeltaTime;
+
+		if (nPgmTime - printTimer >= 100) {
+			printTimer = nPgmTime;
+			writeDebugStreamLine ("Angle: %0.4f", fGyroAngle);
+		}
 	}
 }
