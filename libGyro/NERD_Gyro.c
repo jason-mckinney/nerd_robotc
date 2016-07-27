@@ -37,7 +37,15 @@ gyroCalibrate (Gyro gyro){
 	fStdDev /= (float) GYRO_CALIBRATION_POINTS;
 
 	gyro.m_config.m_fStdDev = fStdDev;
-	gyro.m_config.m_fVoltsPerDPS = (0.0011 * (fRawAverage*5/4095)/1.71625741);
+
+	/*
+	 * Datasheet from VEX indicates that the sensitivity of the gyro is 1.1mV/dps
+	 * and the cortex ADC for raw analog reads ranges from 0-4095 for 0v-5v
+	 * readings. The gyro is scaled from the nominal 2.7v-3.6v operating range
+	 * that the actual chip has to work on the cortex's 5v scale. The scale multiplier
+	 * value is in the ballpark of 1.72, plus or minus a few hundredths.
+	 */
+	gyro.m_config.m_fVoltsPerDPS = (0.0011/1.71625741) * (fRawAverage * 5 / 4095);
 }
 
 /**
@@ -64,9 +72,15 @@ gyroInit (Gyro gyro, int iPortNum) {
 float
 gyroGetRate (Gyro gyro){
 	float fGyroRead = SensorValue (gyro.m_iPortNum);
-	
-	if (fabs (fGyroRead - gyro.m_config.m_fAvg) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev) 
-		return (fGyroRead - gyro.m_config.m_fAvg) * 0.001221 / gyro.m_config.m_fVoltsPerDPS;
+
+	//Difference from zero-rate value or the average calibration read
+	float fGyroDiff = fGyroRead - gyro.m_config.m_fAvg;
+
+	//Difference fro zero-rate value, in volts
+	float fGyroVoltage = fGyroDiff * 5 / 4095;
+		
+	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev) 
+		return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
 
 	return 0;
 }
