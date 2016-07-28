@@ -1,7 +1,7 @@
 #include "NERD_Gyro.h"
 
 //ignore data within n standard deviations of no motion average
-#define GYRO_STD_DEVS 5
+#define GYRO_STD_DEVS 2
 
 //points or time in mSec that the gyro calibrates for
 #define GYRO_CALIBRATION_POINTS 2000
@@ -78,8 +78,8 @@ gyroGetRate (Gyro gyro){
 
 	//Difference fro zero-rate value, in volts
 	float fGyroVoltage = fGyroDiff * 5 / 4095;
-		
-	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev) 
+
+	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
 		return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
 
 	return 0;
