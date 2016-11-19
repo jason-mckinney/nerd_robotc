@@ -43,9 +43,10 @@ gyroCalibrate (Gyro gyro){
 	 * and the cortex ADC for raw analog reads ranges from 0-4095 for 0v-5v
 	 * readings. The gyro is scaled from the nominal 2.7v-3.6v operating range
 	 * that the actual chip has to work on the cortex's 5v scale. The scale multiplier
-	 * value is in the ballpark of 1.72, plus or minus a few hundredths.
+	 * value is in the ballpark of 1.515, plus or minus a few hundredths.
 	 */
-	gyro.m_config.m_fVoltsPerDPS = (0.0011/1.71625741) * (fRawAverage * 5 / 4095);
+	//gyro.m_config.m_fVoltsPerDPS = (0.0011/1.71625741) * (fRawAverage * 5 / 4095);
+	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515) * (2.2725 / fRawAverage * 5 / 4095);
 }
 
 /**
