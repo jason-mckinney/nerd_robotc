@@ -8,7 +8,7 @@
  * @param fKI PID KI constant
  * @param fKD PID KD constant
  * @param fEpsilonInner inner bound of PID I summing cutoff
- * @param fEpsilonOuter outer bounf of PID I summing cutoff
+ * @param fEpsilonOuter outer bound of PID I summing cutoff
  */
 void
 pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter) {

@@ -1,7 +1,7 @@
 #include "NERD_Gyro.h"
 
 //ignore data within n standard deviations of no motion average
-#define GYRO_STD_DEVS 2
+#define GYRO_OVERSAMPLE 2
 
 //points or time in mSec that the gyro calibrates for
 #define GYRO_CALIBRATION_POINTS 2000
@@ -42,10 +42,9 @@ gyroCalibrate (Gyro gyro){
 	 * Datasheet from VEX indicates that the sensitivity of the gyro is 1.1mV/dps
 	 * and the cortex ADC for raw analog reads ranges from 0-4095 for 0v-5v
 	 * readings. The gyro is scaled from the nominal 2.7v-3.6v operating range
-	 * that the actual chip has to work on the cortex's 5v scale. The scale multiplier
-	 * value is in the ballpark of 1.515, plus or minus a few hundredths.
+	 * that the actual chip has to work on the cortex's 5v logic voltage. The scale multiplier
+	 * value is in the ballpark of 1.515.
 	 */
-	//gyro.m_config.m_fVoltsPerDPS = (0.0011/1.71625741) * (fRawAverage * 5 / 4095);
 	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515) * (2.2725 / fRawAverage * 5 / 4095);
 }
 
@@ -72,7 +71,22 @@ gyroInit (Gyro gyro, int iPortNum) {
  */
 float
 gyroGetRate (Gyro gyro){
-	float fGyroRead = SensorValue (gyro.m_iPortNum);
+	float fGyroRead = 0.0;
+
+	#if defined (GYRO_OVERSAMPLE)
+		if (GYRO_OVERSAMPLE > 0) {
+			int sampleSum = 0;
+			int nSamples = pow (4, GYRO_OVERSAMPLE);
+
+			for (int i = 0; i < nSamples; ++i)
+				sampleSum += SensorValue(gyro.m_iPortNum);
+			fGyroRead = (float) sampleSum / (float) nSamples;
+		}
+		else
+			fGyroRead = SensorValue (gyro.m_iPortNum);
+	#else
+		fGyroRead = SensorValue (gyro.m_iPortNum);
+	#endif
 
 	//Difference from zero-rate value or the average calibration read
 	float fGyroDiff = fGyroRead - gyro.m_config.m_fAvg;
@@ -80,8 +94,8 @@ gyroGetRate (Gyro gyro){
 	//Difference fro zero-rate value, in volts
 	float fGyroVoltage = fGyroDiff * 5 / 4095;
 
-	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
-		return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
+	//if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
+	return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
 
-	return 0;
+	//return 0;
 }
