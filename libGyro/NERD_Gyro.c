@@ -1,6 +1,8 @@
 #include "NERD_Gyro.h"
 
 //ignore data within n standard deviations of no motion average
+#define GYRO_STD_DEVS 4
+
 #define GYRO_OVERSAMPLE 2
 
 //points or time in mSec that the gyro calibrates for
@@ -18,7 +20,6 @@ void
 gyroCalibrate (Gyro gyro){
 	float fRawAverage = 0.0;
 	float fStdDev = 0.0;
-	//float rgfRates[GYRO_CALIBRATION_POINTS];
 
 	//calculate average gyro reading with no motion
 	for(int i = 0; i < GYRO_CALIBRATION_POINTS; ++i){
@@ -45,7 +46,8 @@ gyroCalibrate (Gyro gyro){
 	 * that the actual chip has to work on the cortex's 5v logic voltage. The scale multiplier
 	 * value is in the ballpark of 1.515.
 	 */
-	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515) * (2.2725 / fRawAverage * 5 / 4095);
+	float zeroRate = fRawAverage * 5.0 / 4095.0;
+	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515 / 1.0608) * (2.2725 / zeroRate);
 }
 
 /**
@@ -92,10 +94,10 @@ gyroGetRate (Gyro gyro){
 	float fGyroDiff = fGyroRead - gyro.m_config.m_fAvg;
 
 	//Difference fro zero-rate value, in volts
-	float fGyroVoltage = fGyroDiff * 5 / 4095;
+	float fGyroVoltage = fGyroDiff * 5.0 / 4095.0;
 
-	//if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
-	return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
+	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
+		return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
 
-	//return 0;
+	return 0;
 }
