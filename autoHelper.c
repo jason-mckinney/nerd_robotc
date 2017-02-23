@@ -18,6 +18,9 @@ int leftDriveSensorPort;
 float rightDriveSetPoint;
 int rightDriveSensorPort;
 
+bool liftHoldRunning = false;
+bool driveHoldRunning = false;
+
 void
 setLeftDriveMotors (int drive0,
 	int drive1 = 0,
@@ -117,27 +120,162 @@ driveRightDrive (int speed) {
 			motor[rightDrive[i]] = sgn (speed) * TrueSpeed [fabs (speed)];
 }
 
+task
+taskLiftHold () {
+	liftHoldRunning = true;
+	while (true) {
+		driveLift(pidCalculate(liftPID, liftSetPoint, SensorValue(liftSensorPort)));
+	}
+}
+
+task
+taskDriveHold () {
+	driveHoldRunning = true;
+	while (true) {
+		driveLeftDrive (pidCalculate (leftDrivePID, leftDriveSetPoint, SensorValue (leftDriveSensorPort)));
+		driveRightDrive (pidCalculate (rightDrivePID, rightDriveSetPoint, SensorValue (rightDriveSensorPort)));
+	}
+}
+
 void
-liftHold (float kP, float kI, float kD, float inner, float outer, float setPoint, int sensorPort) {
+liftInit (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
 	pidInit (liftPID, kP, kI, kD, inner, outer);
+	liftSensorPort = sensorPort;
+}
 
+void
+driveInit (float kP, float kI, float kD, float inner, float outer, int sensorPortLeft, int sensorPortRight) {
+	pidInit (leftDrivePID, kP, kI, kD, inner, outer);
+	pidInit (rightDrivePID, kP, kI, kD, inner, outer);
 
+	leftDriveSensorPort = sensorPortLeft;
+	rightDriveSensorPort = sensorPortRight;
+}
+
+void
+liftHold (float setPoint) {
+	liftSetPoint = setPoint;
+
+	startTask (taskLiftHold);
+}
+
+void
+driveHold (float setPoint) {
+	leftDriveSetPoint = setPoint;
+	rightDriveSetPoint = setPoint;
+
+	startTask (taskDriveHold);
+}
+
+void
+driveHold (float setPointLeft, float setPointRight) {
+	leftDriveSetPoint = setPointLeft;
+	rightDriveSetPoint = setPointRight;
+
+	startTask (taskDriveHold);
 }
 
 void
 liftStop () {
-
-}
-
-task
-taskLiftHold () {
-
+	stopTask (taskLiftHold);
+	driveLift (0);
+	liftHoldRunning = false;
 }
 
 void
-liftGoTo () {
-
+liftHoldStop () {
+	if (liftHoldRunning) {
+		stopTask (taskLiftHold);
+		driveLift (0);
+		liftHoldRunning = false;
+	}
 }
 
-task main () {
+void
+driveStop () {
+	stopTask (taskDriveHold);
+	driveLeftDrive (0);
+	driveRightDrive (0);
+	driveHoldRunning = false;
+}
+
+void
+driveHoldStop () {
+	if (driveHoldRunning) {
+		stopTask (taskDriveHold);
+		driveLeftDrive (0);
+		driveRightDrive (0);
+		driveHoldRunning = false;
+	}
+}
+
+void
+liftGoTo (float setPoint, float range) {
+	bool atValue = false;
+	long atTime = nPgmTime;
+
+	SensorValue [liftSensorPort] = 0;
+
+	while (!atValue) {
+		liftHold (setPoint);
+
+		if (fabs(setPoint - SensorValue(liftSensorPort)) > range)
+			atTime = nPgmTime;
+		else if (nPgmTime - atTime > 500)
+			atValue = true;
+	}
+}
+
+void
+driveGoTo (float setPoint, float range) {
+	bool atValue = false;
+	long atTime = nPgmTime;
+
+	SensorValue [leftDriveSensorPort] = 0;
+	SensorValue [rightDriveSensorPort] = 0;
+
+	while (!atValue) {
+		driveHold (setPoint);
+
+		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
+			atTime = nPgmTime;
+		else if (nPgmTime - atTime > 500)
+			atValue = true;
+	}
+}
+
+void
+driveTurnLeft (float setPoint, float range) {
+	bool atValue = false;
+	long atTime = nPgmTime;
+
+	SensorValue [leftDriveSensorPort] = 0;
+	SensorValue [rightDriveSensorPort] = 0;
+
+	while (!atValue) {
+		driveHold (-setPoint, setPoint);
+
+		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
+			atTime = nPgmTime;
+		else if (nPgmTime - atTime > 500)
+			atValue = true;
+	}
+}
+
+void
+driveTurnRight (float setPoint, float range) {
+	bool atValue = false;
+	long atTime = nPgmTime;
+
+	SensorValue [leftDriveSensorPort] = 0;
+	SensorValue [rightDriveSensorPort] = 0;
+
+	while (!atValue) {
+		driveHold (setPoint, -setPoint);
+
+		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
+			atTime = nPgmTime;
+		else if (nPgmTime - atTime > 500)
+			atValue = true;
+	}
 }
