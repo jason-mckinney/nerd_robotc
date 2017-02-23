@@ -1,5 +1,6 @@
 #include "NERD_pid.h"
-
+#ifndef PID_C
+#define PID_C
 /**
  * initialize pid structure, set parameters
  *
@@ -56,3 +57,4 @@ pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
 	fOutput = abs(fOutput) > 127 ? 127 * fOutput/abs(fOutput) : fOutput;
 	return fOutput;
 }
+#endif

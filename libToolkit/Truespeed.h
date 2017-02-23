@@ -3,6 +3,9 @@
 //retrieved from http://www.vexforum.com/index.php/9800-24c-s-motor-control-value-remapping/0
 
 // compensates for non-linearity of control value vs speed curve
+
+#ifndef TRUESPEED_H
+#define TRUESPEED_H
 const unsigned int TrueSpeed[128] =
 {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -19,3 +22,4 @@ const unsigned int TrueSpeed[128] =
  80, 81, 83, 84, 84, 86, 86, 87, 87, 88,
  88, 89, 89, 90, 90,127,127,127
 };
+#endif
