@@ -19,7 +19,7 @@
 #include "./autoHelper.c"
 
 void pre_auton () {
-	liftInit (0.35, 0.4, 0.04, 20, 100, liftPot);
+	liftInit (0.35, 0.035, 0.0035, 20, 100, liftPot);
 	setLiftMotors (lift1, lift2);
 
 	driveInit (0.5, 0.05, 0.005, 20, 100, encoderL, encoderR);
@@ -28,7 +28,10 @@ void pre_auton () {
 }
 
 task autonomous () {
-	driveTurnLeft (370, 50);
+	driveGoTo (600, 50);
+	liftGoTo (1400, 100);
+	driveTurnLeft (380, 50);
+	driveGoTo (2000, 50);
 }
 
 task usercontrol () {

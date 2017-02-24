@@ -214,6 +214,8 @@ liftGoTo (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
 
+	liftStop ();
+
 	SensorValue [liftSensorPort] = 0;
 
 	while (!atValue) {
@@ -230,6 +232,8 @@ void
 driveGoTo (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
+
+	driveStop ();
 
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
@@ -249,6 +253,8 @@ driveTurnLeft (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
 
+	driveStop ();
+
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
 
@@ -266,6 +272,8 @@ void
 driveTurnRight (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
+
+	driveStop ();
 
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
