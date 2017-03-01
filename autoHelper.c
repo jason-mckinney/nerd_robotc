@@ -1,5 +1,6 @@
 #include "./libPID/NERD_PID.c"
 #include "./libToolkit/TrueSpeed.h"
+#include "./libGyro/NERD_Gyro.c"
 
 int leftDrive [10];
 int rightDrive [10];
@@ -8,6 +9,9 @@ int lift [10];
 PID leftDrivePID;
 PID rightDrivePID;
 PID liftPID;
+PID driveGyroPID;
+
+Gyro driveGyro;
 
 float liftSetPoint;
 int liftSensorPort;
@@ -18,20 +22,24 @@ int leftDriveSensorPort;
 float rightDriveSetPoint;
 int rightDriveSensorPort;
 
+float driveGyroSetPoint;
+int driveGyroSensorPort;
+float driveGyroAngle;
+
 bool liftHoldRunning = false;
 bool driveHoldRunning = false;
 
 void
 setLeftDriveMotors (int drive0,
-	int drive1 = 0,
-	int drive2 = 0,
-	int drive3 = 0,
-	int drive4 = 0,
-	int drive5 = 0,
-	int drive6 = 0,
-	int drive7 = 0,
-	int drive8 = 0,
-	int drive9 = 0) {
+	int drive1 = -1,
+	int drive2 = -1,
+	int drive3 = -1,
+	int drive4 = -1,
+	int drive5 = -1,
+	int drive6 = -1,
+	int drive7 = -1,
+	int drive8 = -1,
+	int drive9 = -1) {
 		leftDrive[0] = drive0;
 		leftDrive[1] = drive1;
 		leftDrive[2] = drive2;
@@ -46,15 +54,15 @@ setLeftDriveMotors (int drive0,
 
 void
 setRightDriveMotors (int drive0,
-	int drive1 = 0,
-	int drive2 = 0,
-	int drive3 = 0,
-	int drive4 = 0,
-	int drive5 = 0,
-	int drive6 = 0,
-	int drive7 = 0,
-	int drive8 = 0,
-	int drive9 = 0) {
+	int drive1 = -1,
+	int drive2 = -1,
+	int drive3 = -1,
+	int drive4 = -1,
+	int drive5 = -1,
+	int drive6 = -1,
+	int drive7 = -1,
+	int drive8 = -1,
+	int drive9 = -1) {
 		rightDrive[0] = drive0;
 		rightDrive[1] = drive1;
 		rightDrive[2] = drive2;
@@ -69,15 +77,15 @@ setRightDriveMotors (int drive0,
 
 void
 setLiftMotors (int lift0,
-	int lift1 = 0,
-	int lift2 = 0,
-	int lift3 = 0,
-	int lift4 = 0,
-	int lift5 = 0,
-	int lift6 = 0,
-	int lift7 = 0,
-	int lift8 = 0,
-	int lift9 = 0) {
+	int lift1 = -1,
+	int lift2 = -1,
+	int lift3 = -1,
+	int lift4 = -1,
+	int lift5 = -1,
+	int lift6 = -1,
+	int lift7 = -1,
+	int lift8 = -1,
+	int lift9 = -1) {
 		lift[0] = lift0;
 		lift[1] = lift1;
 		lift[2] = lift2;
@@ -137,6 +145,22 @@ taskDriveHold () {
 	}
 }
 
+task
+taskDriveGyroHold () {
+	long lastTime = nPgmTime;
+
+	while (true) {
+		float dT = (nPgmTime - lastTime) / 1000.0;
+		lastTime = nPgmTime;
+		driveGyroAngle += gyroGetRate (driveGyro) * dT;
+
+		int out = pidCalculate (driveGyroPID, driveGyroSetPoint, driveGyroAngle);
+
+		driveLeftDrive (out);
+		driveRightDrive (-out);
+	}
+}
+
 void
 liftInit (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
 	pidInit (liftPID, kP, kI, kD, inner, outer);
@@ -153,8 +177,20 @@ driveInit (float kP, float kI, float kD, float inner, float outer, int sensorPor
 }
 
 void
+driveGyroInit (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
+	pidInit (driveGyroPID, kP, kI, kD, inner, outer);
+
+	driveGyroSensorPort = sensorPort;
+	driveGyroAngle = 0.0;
+
+	gyroInit (driveGyro, driveGyroSensorPort);
+}
+
+void
 liftHold (float setPoint) {
 	liftSetPoint = setPoint;
+
+	liftStop ();
 
 	startTask (taskLiftHold);
 }
@@ -164,6 +200,8 @@ driveHold (float setPoint) {
 	leftDriveSetPoint = setPoint;
 	rightDriveSetPoint = setPoint;
 
+	driveStop ();
+
 	startTask (taskDriveHold);
 }
 
@@ -172,7 +210,18 @@ driveHold (float setPointLeft, float setPointRight) {
 	leftDriveSetPoint = setPointLeft;
 	rightDriveSetPoint = setPointRight;
 
+	driveStop ();
+
 	startTask (taskDriveHold);
+}
+
+void
+driveGyroHold (float setPoint) {
+	driveGyroSetPoint = setPoint;
+
+	driveStop ();
+
+	startTask (taskDriveGyroHold);
 }
 
 void
@@ -194,6 +243,7 @@ liftHoldStop () {
 void
 driveStop () {
 	stopTask (taskDriveHold);
+	stopTask (taskDriveGyroHold);
 	driveLeftDrive (0);
 	driveRightDrive (0);
 	driveHoldRunning = false;
@@ -203,6 +253,7 @@ void
 driveHoldStop () {
 	if (driveHoldRunning) {
 		stopTask (taskDriveHold);
+		stopTask (taskDriveGyroHold);
 		driveLeftDrive (0);
 		driveRightDrive (0);
 		driveHoldRunning = false;
@@ -214,13 +265,11 @@ liftGoTo (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
 
-	liftStop ();
-
 	SensorValue [liftSensorPort] = 0;
 
-	while (!atValue) {
-		liftHold (setPoint);
+	liftHold (setPoint);
 
+	while (!atValue) {
 		if (fabs(setPoint - SensorValue(liftSensorPort)) > range)
 			atTime = nPgmTime;
 		else if (nPgmTime - atTime > 500)
@@ -233,14 +282,12 @@ driveGoTo (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
 
-	driveStop ();
-
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
 
-	while (!atValue) {
-		driveHold (setPoint);
+	driveHold (setPoint);
 
+	while (!atValue) {
 		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
 			atTime = nPgmTime;
 		else if (nPgmTime - atTime > 500)
@@ -253,14 +300,12 @@ driveTurnLeft (float setPoint, float range) {
 	bool atValue = false;
 	long atTime = nPgmTime;
 
-	driveStop ();
-
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
 
-	while (!atValue) {
-		driveHold (-setPoint, setPoint);
+	driveHold (-setPoint, setPoint);
 
+	while (!atValue) {
 		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
 			atTime = nPgmTime;
 		else if (nPgmTime - atTime > 500)
@@ -270,20 +315,31 @@ driveTurnLeft (float setPoint, float range) {
 
 void
 driveTurnRight (float setPoint, float range) {
-	bool atValue = false;
 	long atTime = nPgmTime;
-
-	driveStop ();
 
 	SensorValue [leftDriveSensorPort] = 0;
 	SensorValue [rightDriveSensorPort] = 0;
 
-	while (!atValue) {
-		driveHold (setPoint, -setPoint);
+	driveHold (setPoint, -setPoint);
 
+	while (true) {
 		if (fabs(setPoint - SensorValue(leftDriveSensorPort)) > range && fabs(setPoint - SensorValue(rightDriveSensorPort)) > range)
 			atTime = nPgmTime;
 		else if (nPgmTime - atTime > 500)
-			atValue = true;
+			break;
+	}
+}
+
+void
+driveGyroTurn (float setPoint, float range) {
+	long atTime = nPgmTime;
+
+	driveGyroHold (setPoint);
+
+	while (true) {
+		if (fabs (setPoint - driveGyroAngle) > range)
+			atTime = nPgmTime;
+		else if (nPgmTime - atTime > 500)
+			break;
 	}
 }
