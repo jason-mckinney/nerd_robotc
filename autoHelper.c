@@ -29,6 +29,9 @@ float driveGyroAngle;
 bool liftHoldRunning = false;
 bool driveHoldRunning = false;
 
+void driveStop ();
+void liftStop ();
+
 void
 setLeftDriveMotors (int drive0,
 	int drive1 = -1,
