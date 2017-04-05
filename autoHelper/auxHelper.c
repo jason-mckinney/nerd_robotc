@@ -3,13 +3,13 @@
 void
 aux1Init (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
 	pidInit (aux1PID, kP, kI, kD, inner, outer);
-	liftSensorPort = sensorPort;
+	aux1SensorPort = sensorPort;
 }
 
 void
 aux2Init (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
 	pidInit (aux2PID, kP, kI, kD, inner, outer);
-	liftSensorPort = sensorPort;
+	aux2SensorPort = sensorPort;
 }
 
 void
