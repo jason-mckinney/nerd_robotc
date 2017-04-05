@@ -10,11 +10,11 @@ int liftSensorPort;
 
 bool liftHoldRunning = false;
 
-void driveLift (int);
-void liftGoTo (float, float);
-void liftHold (float);
+void driveLift (int speed);
+void liftGoTo (float setPoint, float range);
+void liftHold (float setPoitn);
 void liftHoldStop ();
-void liftInit (float, float, float, float, float, int);
+void liftInit (float kP, float kI, float kD, float inner, float outer, int sensorPort);
 void liftStop ();
 
 task taskLiftHold ();
