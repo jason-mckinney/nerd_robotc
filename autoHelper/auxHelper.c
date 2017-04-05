@@ -1,6 +1,20 @@
+#include "auxHelper.h"
+
+void
+aux1Init (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
+	pidInit (aux1PID, kP, kI, kD, inner, outer);
+	liftSensorPort = sensorPort;
+}
+
+void
+aux2Init (float kP, float kI, float kD, float inner, float outer, int sensorPort) {
+	pidInit (aux2PID, kP, kI, kD, inner, outer);
+	liftSensorPort = sensorPort;
+}
+
 void
 setAux1Motors (int aux0,
-	int aux1 = -1,
+	int aux01 = -1,
 	int aux2 = -1,
 	int aux3 = -1,
 	int aux4 = -1,
@@ -10,7 +24,7 @@ setAux1Motors (int aux0,
 	int aux8 = -1,
 	int aux9 = -1) {
 		aux1[0] = aux0;
-		aux1[1] = aux1;
+		aux1[1] = aux01;
 		aux1[2] = aux2;
 		aux1[3] = aux3;
 		aux1[4] = aux4;
@@ -24,7 +38,7 @@ setAux1Motors (int aux0,
 void
 setAux2Motors (int aux0,
 	int aux1 = -1,
-	int aux2 = -1,
+	int aux02 = -1,
 	int aux3 = -1,
 	int aux4 = -1,
 	int aux5 = -1,
@@ -34,7 +48,7 @@ setAux2Motors (int aux0,
 	int aux9 = -1) {
 		aux2[0] = aux0;
 		aux2[1] = aux1;
-		aux2[2] = aux2;
+		aux2[2] = aux02;
 		aux2[3] = aux3;
 		aux2[4] = aux4;
 		aux2[5] = aux5;
@@ -62,28 +76,28 @@ driveAux2 (int speed) {
 			motor [aux2 [i]] = sgn (speed) * TrueSpeed [fabs (speed)];
 }
 
-void 
+void
 aux1Hold (float setPoint) {
 	aux1SetPoint = setPoint;
 	aux1Stop ();
 	startTask (taskAux1Hold);
 }
 
-void 
+void
 aux2Hold (float setPoint) {
 	aux2SetPoint = setPoint;
 	aux2Stop ();
 	startTask (taskAux2Hold);
 }
 
-void 
+void
 aux1Stop () {
 	stopTask (taskAux1Hold);
 	driveAux1 (0);
 	aux1HoldRunning = false;
 }
 
-void 
+void
 aux1HoldStop () {
 	if (aux1HoldRunning) {
 		stopTask (taskAux1Hold);
@@ -92,14 +106,14 @@ aux1HoldStop () {
 	}
 }
 
-void 
+void
 aux2Stop () {
 	stopTask (taskAux2Hold);
 	driveAux2 (0);
 	aux2HoldRunning = false;
 }
 
-void 
+void
 aux2HoldStop () {
 	if (aux2HoldRunning) {
 		stopTask (taskAux2Hold);

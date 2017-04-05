@@ -12,7 +12,7 @@ bool liftHoldRunning = false;
 
 void driveLift (int speed);
 void liftGoTo (float setPoint, float range);
-void liftHold (float setPoitn);
+void liftHold (float setPoint);
 void liftHoldStop ();
 void liftInit (float kP, float kI, float kD, float inner, float outer, int sensorPort);
 void liftStop ();
