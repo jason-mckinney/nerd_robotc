@@ -1,6 +1,7 @@
 #ifndef NERD_Gyro_h
 #define NERD_Gyro_h
 
+
 struct SGyroConfig{
 	float m_fStdDev;
 	float m_fAvg;
@@ -12,5 +13,6 @@ typedef struct {
 	float m_fAngle;
 	int m_iPortNum;
 } Gyro;
+
 
 #endif

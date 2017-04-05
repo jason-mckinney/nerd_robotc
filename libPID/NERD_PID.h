@@ -1,6 +1,7 @@
 #ifndef NERD_PID_h
 #define NERD_PID_h
 
+
 typedef struct{
 	float m_fKP;
 	float m_fKI;
@@ -12,5 +13,6 @@ typedef struct{
 	unsigned long m_uliLastTime;
 	float m_fLastSetPoint;
 } PID;
+
 
 #endif

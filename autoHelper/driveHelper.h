@@ -35,8 +35,6 @@ void driveRightDrive (int speed);
 void driveStop ();
 void driveTurnLeft (float setPoint, float range);
 void driveTurnRight (float setPoint, float range);
-void setLeftDriveMotors (int, int, int, int, int, int, int, int, int, int);
-void setRightDriveMotors (int, int, int, int, int, int, int, int, int, int);
 
 task taskDriveHold ();
 task taskDriveGyroHold ();
