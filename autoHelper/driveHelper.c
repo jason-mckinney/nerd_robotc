@@ -23,6 +23,7 @@ driveGyroHold (float setPoint) {
 	driveGyroSetPoint = setPoint;
 
 	driveStop ();
+	driveGyroAngle = 0;
 
 	startTask (taskDriveGyroHold);
 }
@@ -46,9 +47,10 @@ driveGyroTurn (float setPoint, float range) {
 	while (true) {
 		if (fabs (setPoint - driveGyroAngle) > range)
 			atTime = nPgmTime;
-		else if (nPgmTime - atTime > 500)
+		else if (nPgmTime - atTime > 200)
 			break;
 	}
+	stopTask (taskDriveGyroHold);
 }
 
 void
@@ -221,7 +223,7 @@ taskDriveGyroHold () {
 
 		int out = pidCalculate (driveGyroPID, driveGyroSetPoint, driveGyroAngle);
 
-		driveLeftDrive (out);
-		driveRightDrive (-out);
+		driveLeftDrive (-out);
+		driveRightDrive (out);
 	}
 }

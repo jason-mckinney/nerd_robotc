@@ -45,9 +45,9 @@ gyroCalibrate (Gyro gyro){
 	 * readings. The gyro is scaled from the nominal 2.7v-3.6v operating range
 	 * that the actual chip has to work on the cortex's 5v logic voltage. The scale multiplier
 	 * value is in the ballpark of 1.515.
-	 */
+	 *///1.0608
 	float zeroRate = fRawAverage * 5.0 / 4095.0;
-	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515 / 1.0608) * (2.2725 / zeroRate);
+	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515) * (2.2725 / zeroRate);
 }
 
 /**
