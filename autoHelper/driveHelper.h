@@ -5,6 +5,7 @@
 PID leftDrivePID;
 PID rightDrivePID;
 PID driveGyroPID;
+PID driveSlavePID;
 
 Gyro driveGyro;
 
@@ -30,11 +31,13 @@ void driveHold (float setPoint);
 void driveHold (float setPointLeft, float setPointRight);
 void driveHoldStop ();
 void driveInit (float kP, float kI, float kD, float inner, float outer, int sensorPortLeft, int sensorPortRight);
+void driveSlaveInit (float kP, float kI, float kD, float inner, float outer);
 void driveLeftDrive (int speed);
 void driveRightDrive (int speed);
 void driveStop ();
 void driveTurnLeft (float setPoint, float range);
 void driveTurnRight (float setPoint, float range);
+
 
 task taskDriveHold ();
 task taskDriveGyroHold ();

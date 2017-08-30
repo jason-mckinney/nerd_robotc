@@ -89,8 +89,16 @@ driveInit (float kP, float kI, float kD, float inner, float outer, int sensorPor
 	pidInit (leftDrivePID, kP, kI, kD, inner, outer);
 	pidInit (rightDrivePID, kP, kI, kD, inner, outer);
 
+	if (driveSlavePID.m_uliLastTime == 0)
+		pidInit (driveSlavePID, 0.3, 0, 0.03, 0, 0);
+
 	leftDriveSensorPort = sensorPortLeft;
 	rightDriveSensorPort = sensorPortRight;
+}
+
+void
+driveSlaveInit (float kP, float kI, float kD, float inner, float outer) {
+	pidInit (driveSlavePID, kP, kI, kD, inner, outer);
 }
 
 void
@@ -207,8 +215,15 @@ task
 taskDriveHold () {
 	driveHoldRunning = true;
 	while (true) {
-		driveLeftDrive (pidCalculate (leftDrivePID, leftDriveSetPoint, SensorValue (leftDriveSensorPort)));
-		driveRightDrive (pidCalculate (rightDrivePID, rightDriveSetPoint, SensorValue (rightDriveSensorPort)));
+		if (leftDriveSetPoint == rightDriveSetPoint) {
+			float driveOut = pidCalculate (leftDrivePID, leftDriveSetPoint, SensorValue (leftDriveSensorPort));
+			float slaveOut = pidCalculate (driveSlavePID, SensorValue (leftDriveSensorPort), SensorValue (rightDriveSensorPort));
+			driveLeftDrive (driveOut);
+			driveRightDrive (driveOut + slaveOut);
+		} else {
+			driveLeftDrive (pidCalculate (leftDrivePID, leftDriveSetPoint, SensorValue (leftDriveSensorPort)));
+			driveRightDrive (pidCalculate (rightDrivePID, rightDriveSensorPort, SensorValue (rightDriveSensorPort)));
+		}
 	}
 }
 
