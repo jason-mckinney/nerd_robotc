@@ -222,7 +222,7 @@ taskDriveHold () {
 			driveRightDrive (driveOut + slaveOut);
 		} else {
 			driveLeftDrive (pidCalculate (leftDrivePID, leftDriveSetPoint, SensorValue (leftDriveSensorPort)));
-			driveRightDrive (pidCalculate (rightDrivePID, rightDriveSensorPort, SensorValue (rightDriveSensorPort)));
+			driveRightDrive (pidCalculate (rightDrivePID, rightDriveSetPoint, SensorValue (rightDriveSensorPort)));
 		}
 	}
 }
