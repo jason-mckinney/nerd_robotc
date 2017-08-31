@@ -34,6 +34,18 @@ driveGyroInit (float kP, float kI, float kD, float inner, float outer, int senso
 
 	driveGyroSensorPort = sensorPort;
 	driveGyroAngle = 0.0;
+	driveGyro.m_config.m_bGyroFlipped = false;
+
+	gyroInit (driveGyro, driveGyroSensorPort);
+}
+
+void
+driveGyroInit (float kP, float kI, float kD, float inner, float outer, int sensorPort, bool flipped) {
+	pidInit (driveGyroPID, kP, kI, kD, inner, outer);
+
+	driveGyroSensorPort = sensorPort;
+	driveGyroAngle = 0.0;
+	driveGyro.m_config.m_bGyroFlipped = flipped;
 
 	gyroInit (driveGyro, driveGyroSensorPort);
 }

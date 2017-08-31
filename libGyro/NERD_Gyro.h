@@ -6,6 +6,7 @@ struct SGyroConfig{
 	float m_fStdDev;
 	float m_fAvg;
 	float m_fVoltsPerDPS;
+	bool m_bGyroFlipped;
 };
 
 typedef struct {

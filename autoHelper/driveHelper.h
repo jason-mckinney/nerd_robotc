@@ -26,6 +26,7 @@ bool driveHoldRunning = false;
 void driveGoTo (float setPoint, float range);
 void driveGyroHold (float setPoint);
 void driveGyroInit (float kP, float kI, float kD, float inner, float outer, int sensorPort);
+void driveGyroInit (float kP, float kI, float kD, float inner, float outer, int sensorPort, bool flipped);
 void driveGyroTurn (float setPoint, float range);
 void driveHold (float setPoint);
 void driveHold (float setPointLeft, float setPointRight);

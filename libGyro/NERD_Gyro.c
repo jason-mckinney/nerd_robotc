@@ -97,7 +97,9 @@ gyroGetRate (Gyro gyro){
 	float fGyroVoltage = fGyroDiff * 5.0 / 4095.0;
 
 	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
-		return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
-
+		if (gyro.m_config.m_bGyroFlipped)
+			return -1 * fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
+		else
+			return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
 	return 0;
 }
