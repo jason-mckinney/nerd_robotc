@@ -31,10 +31,10 @@ pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
  */
 void pidInit (PID pid, PID toCopy) {
 	pid.m_fKP = toCopy.m_fKP;
-	pid.m_fKI = toCopy.fKI;
-	pid.m_fKD = toCopy.fKD;
-	pid.m_fEpsilonInner = toCopy.fEpsilonInner;
-	pid.m_fEpsilonOuter = toCopy.fEpsilonOuter;
+	pid.m_fKI = toCopy.m_fKI;
+	pid.m_fKD = toCopy.m_fKD;
+	pid.m_fEpsilonInner = toCopy.m_fEpsilonInner;
+	pid.m_fEpsilonOuter = toCopy.m_fEpsilonOuter;
 	pid.m_fSigma = 0;
 	pid.m_fLastValue = 0;
 	pid.m_uliLastTime = nPgmTime;
@@ -60,7 +60,7 @@ pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
 	pid.m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
-
+	
 	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
 		pid.m_fSigma += fError * fDeltaTime;
 
@@ -71,7 +71,9 @@ pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
 					+ pid.m_fSigma * pid.m_fKI
 					- fDeltaPV * pid.m_fKD;
 
-	fOutput = fabs(fOutput) > 127 ? 127 * fOutput/fabs(fOutput) : fOutput;
+  //writeDebugStreamLine ("pid %02f  %02f  %02f", pid.m_fKP, pid.m_fKI, pid.m_fKD);
+
+	//fOutput = fabs(fOutput) > 127 ? 127 * fOutput/fabs(fOutput) : fOutput;
 	return fOutput;
 }
 #endif
