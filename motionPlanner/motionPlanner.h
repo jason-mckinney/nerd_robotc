@@ -201,11 +201,13 @@ void createMotionController (int motorPort) {
 
 void
 setMotionSlave (int motorPort, int masterPort) {
+	if (motorController [masterPort] == NULL)
+		return;
 	motorController [motorPort] = motorController [masterPort];
 }
 
 void
-setPosition (int motorPort, float position) {
+setPositionSimple (int motorPort, float position) {
 	motorController[motorPort]->controllerSetting = 0b01;
 	motorController[motorPort]->positionSet = position;
 }
@@ -217,7 +219,7 @@ setVelocity (int motorPort, float velocity) {
 }
 
 void
-setPositionVelocity (int motorPort, float position) {
+setPosition (int motorPort, float position) {
 	motorController[motorPort]->controllerSetting = 0b11;
 	motorController[motorPort]->positionSet = position;
 	motorController[motorPort]->cascadeCounter = CASCADE_MULTIPLIER;
