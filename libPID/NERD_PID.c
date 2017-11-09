@@ -24,6 +24,23 @@ pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
 }
 
 /**
+ * initialize pid structure, set parameters based on another PID structure
+ *
+ * @param pid  instance of PID structure
+ * @param toCopy  PID instance to copy settings from
+ */
+void pidInit (PID pid, PID toCopy) {
+	pid.m_fKP = toCopy.m_fKP;
+	pid.m_fKI = toCopy.fKI;
+	pid.m_fKD = toCopy.fKD;
+	pid.m_fEpsilonInner = toCopy.fEpsilonInner;
+	pid.m_fEpsilonOuter = toCopy.fEpsilonOuter;
+	pid.m_fSigma = 0;
+	pid.m_fLastValue = 0;
+	pid.m_uliLastTime = nPgmTime;
+}
+
+/**
  * calculate pid output
  *
  * @param pid instance of PID structure
