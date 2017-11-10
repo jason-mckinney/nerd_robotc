@@ -18,6 +18,8 @@ const unsigned int TrueSpeed[128] =
 };
 #endif
 
+//----- PID controller -----//
+
 #ifndef NERD_PID_h
 #define NERD_PID_h
 
@@ -109,12 +111,11 @@ pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
 					+ pid.m_fSigma * pid.m_fKI
 					- fDeltaPV * pid.m_fKD;
 
-  //writeDebugStreamLine ("pid %02f  %02f  %02f", pid.m_fKP, pid.m_fKI, pid.m_fKD);
-
-	//fOutput = fabs(fOutput) > 127 ? 127 * fOutput/fabs(fOutput) : fOutput;
 	return fOutput;
 }
 #endif
+
+//----- Motion Planner -----//
 
 #ifndef NERD_MOTIONPLANNER
 #define NERD_MOTIONPLANNER
@@ -124,16 +125,20 @@ pidCalculate (PID pid, float fSetPoint, float fProcessVariable) {
 typedef struct {
 	PID positionController;
 	PID velocityController;
+	
 	int *sensor;
-	int motorOutput;
+	int compFilter [5];
+	
 	char controllerSetting;
-	float positionSet;
-	float velocitySet;
+	char cascadeCounter;
+	short motorOutput;
 	int lastSensorValue;
 	unsigned int lastSensorTime;
+	
+	float positionSet;
+	float velocitySet;
 	float sensorRate;
-	char cascadeCounter;
-	int compFilter [5];
+	float scaleFactor;
 } motionController;
 
 motionController* motorController [10];
@@ -169,6 +174,7 @@ createMotionController (int motorPort, int *sensor, PID positionPID, PID velocit
 	controller.cascadeCounter = CASCADE_MULTIPLIER;
 	controller.motorOutput = 0;
 	controller.controllerSetting = 0b00;
+	controller.scaleFactor = 1.0;
 
 	motorController [motorPort] = &controller;
 
@@ -189,14 +195,10 @@ createMotionController (int motorPort, int *sensor) {
 	PID posPID;
 	PID velPID;
 
-	pidInit (posPID, 7, 0.7, 0.07, 30, 100);
-	pidInit (velPID, 0.12, 0.4, 0.0012, 0, 500);
+	pidInit (posPID, 6.5, 0.65, 0.0065, 30, 100);
+	pidInit (velPID, 0.12, 0.5, 0.0006, 50, 500);
 
 	createMotionController (motorPort, sensor, posPID, velPID);
-}
-
-void createMotionController (int motorPort) {
-
 }
 
 void
@@ -240,6 +242,17 @@ setPower (int motorPort, float power) {
 	motorController[motorPort]->motorOutput = (int) power;
 }
 
+void
+setUnitsPerDegree (int motorPort, float units) {
+	if (units == 0)
+		return;
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motionController *m = motorController [motorPort];
+	m->scaleFactor = 1.0/units;
+}
+
 task rawSensorMonitor () {
 	int i;
 
@@ -252,6 +265,7 @@ task rawSensorMonitor () {
 
 task motionPlanner () {
 	int i;
+	int lastTime = nPgmTime;
 
 	startTask (rawSensorMonitor);
 
@@ -286,7 +300,7 @@ task motionPlanner () {
 				uniqueControllers [i]->motorOutput = output;
 			} else if (uniqueControllers [i]->controllerSetting == 0b11) { //position + velocity set
 				if (uniqueControllers [i]->cascadeCounter >= CASCADE_MULTIPLIER) {
-					uniqueControllers [i]->velocitySet = pidCalculate (uniqueControllers [i]->positionController, uniqueControllers [i]->positionSet, *(uniqueControllers [i]->sensor));
+					uniqueControllers [i]->velocitySet = uniqueControllers [i]->scaleFactor * pidCalculate (uniqueControllers [i]->positionController, uniqueControllers [i]->positionSet, *(uniqueControllers [i]->sensor));
 					uniqueControllers [i]->cascadeCounter = 0;
 				}
 				uniqueControllers [i]->cascadeCounter++;
@@ -308,7 +322,10 @@ task motionPlanner () {
 			motor[i] = sgn(motorController [i]->motorOutput) * TrueSpeed[(int) fabs (motorController [i]->motorOutput)];
 		}
 
-		delay (20);
+		while (nPgmTime - lastTime < 20) {
+			delay (1);
+		}
+		lastTime = nPgmTime;
 	}
 }
 
