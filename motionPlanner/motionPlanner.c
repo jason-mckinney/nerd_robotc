@@ -18,19 +18,6 @@ const unsigned int TrueSpeed[128] =
 };
 #endif
 
-#ifndef DYNAMIC_ARRAYS
-#define DYNAMIC_ARRAYS
-
-typedef struct listEntry {
-	int size;
-	void *entry;
-	listEntry *next;
-} dynamicList;
-
-
-
-#endif
-
 //----- PID controller -----//
 
 #ifndef NERD_PID_h
@@ -113,7 +100,7 @@ pidCalculate (PID pid, int fSetPoint, int fProcessVariable) {
 	pid.m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
-	
+
 	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
 		pid.m_fSigma += fError * fDeltaTime;
 
@@ -136,16 +123,16 @@ pidCalculate (PID pid, int fSetPoint, int fProcessVariable) {
 typedef struct {
 	PID positionController;
 	PID velocityController;
-	
+
 	int *sensor;
 	int compFilter [5];
-	
+
 	char profileSetting;
 	char cycleCounter;
 	short motorOutput;
 	int lastSensorValue;
 	unsigned int lastTime;
-	
+
 	int finalPosition;
 	int positionSet;
 	int velocitySet;
@@ -157,11 +144,13 @@ typedef struct {
 	int t4;
 	int cycleTime;
 	int positionRate;
-	int sizeFL1;
-	int sizeFL2;
-	float FL1;
-	float FL2;
 	int n;
+
+	int FL1Length;
+	char FL1 [100];
+
+	int FL2Length;
+	char FL2 [100];
 } motionProfiler;
 
 motionProfiler* motorController [10];
@@ -192,7 +181,7 @@ createMotionProfiler (int motorPort, int *sensor, int vMax, int t1, int t2, int 
 	controller.sensor = sensor;
 	controller.velocityRead = 0;
 	controller.lastSensorValue = *sensor;
-	controller.lastSensorTime = nPgmTime;
+	controller.lastTime = nPgmTime;
 	controller.positionSet = *sensor;
 	controller.velocitySet = 0;
 	controller.motorOutput = 0;
@@ -240,21 +229,21 @@ void
 setPosition (int motorPort, int position) {
 	int distance = position - *(motorController [motorPort]->sensor);
 
-	motorController[motorPort]->controllerSetting = 0b11;
+	motorController[motorPort]->profileSetting = 0b11;
 	motorController [motorPort]->finalPosition = position;
-	motorController [motorPort]->t4 = 1000 * deltaPosition / motorController [motorPort]->vMax;
-	motorController [motorPort]->sizeFL1 = ceil ((float) motorController [motorPort]->t1 / motorController [motorPort]->cycleTime);
-	motorController [motorPort]->sizeFL2 = ceil ((float) motorController [motorPort]->t2 / motorController [motorPort]->cycleTime);
-	motorController [motorPort]->FL1 = 0;
-	motorController [motorPort]->FL2 = 0;
+	motorController [motorPort]->t4 = 1000 * distance / motorController [motorPort]->vMax;
 	motorController [motorPort]->n = ceil ((float) motorController [motorPort]->t4 / motorController [motorPort]->cycleTime);
+
+	int FL1Length = ceil ((float) motorController [motorPort]->t1 / motorController [motorPort]->cycleTime);
+	//motorController [motorPort]->FL1 =
+	//motorController [motorPort]->sizeFL2 = ceil ((float) motorController [motorPort]->t2 / motorController [motorPort]->cycleTime);
 
 	motorController [motorPort]->cycleCounter = 0;
 }
 
 void
 setPower (int motorPort, float power) {
-	motorController[motorPort]->controllerSetting = 0b00;
+	motorController[motorPort]->profileSetting = 0b00;
 
 	power = power * 1.27;
 
@@ -296,9 +285,9 @@ task motionPlanner () {
 			//get motion profile output
 
 			//filter 1
-			if (uniqueControllers [i]->cycleCounter < uniqueControllers [i]->n && uniqueControllers [i]->FL1 < 1) {
+			/*if (uniqueControllers [i]->cycleCounter < uniqueControllers [i]->n && uniqueControllers [i]->FL1 < 1) {
 				uniqueControllers [i]->FL1 += 1.0/(uniqueControllers [i]->sizeFL1);
-				
+
 				if (uniqueControllers [i]->FL1 > 1) {
 					uniqueControllers [i]->FL1 = 1;
 				}
@@ -308,7 +297,7 @@ task motionPlanner () {
 				if (uniqueControllers [i]->FL1 < 0){
 					uniqueControllers [i]->FL1 = 0;
 				}
-			}
+			}*/
 
 			//filter 2
 
@@ -319,12 +308,12 @@ task motionPlanner () {
 			int sensorRate = sensorValue - uniqueControllers [i]->lastSensorValue;
 
 			for (int j = 4; j > 0; --j) {
-				uniqueControllers [i]->compFilter [j] = uniqueControllers [i]->compFilter [j-1]; 
+				uniqueControllers [i]->compFilter [j] = uniqueControllers [i]->compFilter [j-1];
 			}
 			uniqueControllers [i]->compFilter [0] = sensorRate;
 
 			sensorRate = uniqueControllers [i]->compFilter [0] * 0.5 + uniqueControllers [i]->compFilter [1] * 0.25 + uniqueControllers [i]->compFilter [2] * 0.125 + uniqueControllers [i]->compFilter [3] * 0.0625 + uniqueControllers [i]->compFilter [4] * 0.0625;
-			uniqueControllers [i]->sensorRate = sensorRate;
+			uniqueControllers [i]->velocityRead = sensorRate;
 			uniqueControllers [i]->lastSensorValue = sensorValue;
 
 			//do velocity PID
