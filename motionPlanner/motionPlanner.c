@@ -432,6 +432,31 @@ task motionPlanner () {
 				datalogDataGroupEnd();
 
 				profile->lastTime = nPgmTime;
+			} else if (profile->profileSetting == 0b10) {
+				//get sensor velocity, ticks per second
+				float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
+
+				for (int j = 4; j > 0; --j) {
+					profile->velocityFilter [j] = profile->velocityFilter [j-1];
+				}
+				profile->velocityFilter [0] = sensorRate;
+
+				sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
+				profile->velocityRead = sensorRate;
+				profile->lastSensorValue = sensorValue;
+
+				//do velocity PID
+				float velocityOut = pidCalculate (profile->velocityController, profile->velocitySet, profile->velocityRead);
+
+				//set motor PWM output
+				profile->motorOutput = velocityOut;
+
+				if (profile->motorOutput > 127)
+					profile->motorOutput = 127;
+				else if (profile->motorOutput < -127)
+					profile->motorOutput = -127;
+
+				profile->lastTime = nPgmTime;
 			}
 		}
 
