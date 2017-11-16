@@ -28,12 +28,12 @@ typedef struct {
 	float m_fKP;
 	float m_fKI;
 	float m_fKD;
-	int m_fEpsilonInner;
-	int m_fEpsilonOuter;
-	int m_fSigma;
-	int m_fLastValue;
+	float m_fEpsilonInner;
+	float m_fEpsilonOuter;
+	float m_fSigma;
+	float m_fLastValue;
 	unsigned long m_uliLastTime;
-	int m_fLastSetPoint;
+	float m_fLastSetPoint;
 } PID;
 
 
@@ -52,7 +52,7 @@ typedef struct {
  * @param fEpsilonOuter outer bound of PID I summing cutoff
  */
 void
-pidInit (PID pid, float fKP, float fKI, float fKD, int fEpsilonInner, int fEpsilonOuter) {
+pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter) {
 	pid.m_fKP = fKP;
 	pid.m_fKI = fKI;
 	pid.m_fKD = fKD;
@@ -263,6 +263,24 @@ createMotionProfiler (int motorPort, int *sensor, int vMax) {
 }
 
 void
+setPositionController (int motorPort, float kP, float kI, float kD, float innerBand, float outerBand) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motionProfiler *profile = motorController [motorPort];
+	pidInit (profile->positionController, kP, kI, kD, innerBand, outerBand);
+}
+
+void
+setVelocityController (int motorPort, float kP, float kI, float kD, float innerBand, float outerBand) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motionProfiler *profile = motorController [motorPort];
+	pidInit (profile->velocityController, kP, kI, kD, innerBand, outerBand);
+}
+
+void
 setMotionSlave (int motorPort, int masterPort) {
 	if (motorController [masterPort] == NULL)
 		return;
@@ -299,18 +317,22 @@ setPosition (int motorPort, int position) {
 }
 
 void
-setPower (int motorPort, float power) {
+setPWMOutput (int motorPort, int output) {
+	if (motorController [motorPort] == NULL)
+		return;	
+
 	motorController[motorPort]->profileSetting = 0b00;
+	motorController[motorPort]->motorOutput = output;
+}
 
-	power = power * 1.27;
+void
+setVelocity (int motorPort, int velocity) {
+	if (motorController [motorPort] == NULL)
+		return;
 
-	if (power < -127)
-		power = -127;
-	if (power > 127)
-		power = 127;
-
-	power = sgn (power) * TrueSpeed [(int) (fabs (power))];
-	motorController[motorPort]->motorOutput = (int) power;
+	motionProfiler *profile = motorController[motorPort];
+	profile->profileSetting = 0b10;
+	profile->velocitySet = velocity;
 }
 
 task rawSensorMonitor () {
