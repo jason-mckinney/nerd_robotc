@@ -191,11 +191,12 @@ typedef struct {
 	int t2; //time for acceleration ramping
 	int t4; //estimated time assuming constant max velocity
 	int tMax; //total estimated time of profile
-	
+
 	int cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
 } motionProfiler;
 
+motionProfiler profilerPool[10]; //  because RobotC is trash we need to allocate space for profilers at compile time instead of instantiating them as we need them
 motionProfiler* motorController [10];
 motionProfiler* uniqueControllers [10];
 
@@ -214,46 +215,46 @@ createMotionProfiler (int motorPort, int *sensor, int vMax, int t1, int t2, int 
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
-	if (motorController [motorPort])
+	if (motorController [motorPort] != NULL)
 		return;
 
 	int i;
+	motionProfiler *controller;
 
-	motionProfiler controller;
-	controller.sensor = sensor;
-	controller.velocityRead = 0;
-	controller.profileSetting = 0x00;
-	controller.cycleCounter = 0;
-	controller.motorOutput = 0;
-	controller.lastSensorValue = *sensor;
-	controller.lastTime = nPgmTime;
-	controller.vMax = vMax;
-	controller.positionOut = 0;
-
-	controller.velocityFilter[0] = 0;
-	controller.velocityFilter[1] = 0;
-	controller.velocityFilter[2] = 0;
-	controller.velocityFilter[3] = 0;
-	controller.velocityFilter[4] = 0;
-
-	controller.t1 = t1;
-	controller.t2 = t2;
-
-	controller.cycleTime = cycleTime;
-	controller.positionCycles = positionCycles;
-
-	motorController [motorPort] = &controller;
-
-	pidInit (motorController [motorPort]->positionController, 3, 0.001, 0.001, 15, 100);
-	pidInit (motorController [motorPort]->velocityController, 0.12, 0.5, 0.01, 50, 500);
-
-	for (i = 0; i < 10; ++i) {
-		if (uniqueControllers[i])
+	for (i = 0; i < 10; i++) {
+		if (uniqueControllers[i] != NULL)
 			continue;
 
-		uniqueControllers [i] = &controller;
+		uniqueControllers [i] = &(profilerPool [i]);
+		controller = uniqueControllers [i];
 		break;
 	}
+
+	motorController [motorPort] = controller;
+	controller->sensor = sensor;
+	controller->velocityRead = 0;
+	controller->profileSetting = 0x00;
+	controller->cycleCounter = 0;
+	controller->motorOutput = 0;
+	controller->lastSensorValue = *sensor;
+	controller->lastTime = nPgmTime;
+	controller->vMax = vMax;
+	controller->positionOut = 0;
+
+	controller->velocityFilter[0] = 0;
+	controller->velocityFilter[1] = 0;
+	controller->velocityFilter[2] = 0;
+	controller->velocityFilter[3] = 0;
+	controller->velocityFilter[4] = 0;
+
+	controller->t1 = t1;
+	controller->t2 = t2;
+
+	controller->cycleTime = cycleTime;
+	controller->positionCycles = positionCycles;
+
+	pidInit (controller->positionController, 3, 0.001, 0.001, 15, 100);
+	pidInit (controller->velocityController, 0.12, 0.5, 0.01, 50, 500);
 }
 
 void
@@ -270,12 +271,15 @@ setMotionSlave (int motorPort, int masterPort) {
 
 void
 setPosition (int motorPort, int position) {
+	if (motorController [motorPort] == NULL)
+		return;
+
 	motionProfiler *profile = motorController [motorPort];
 
 	int distance = position - *(profile->sensor);
 
 	profile->t4 = 1000 * fabs (distance) / profile->vMax;
-	
+
 	if (profile->t4 < profile->t1 + profile->t2) {
 		//short movement profile, not implemented yet...
 		return;
@@ -352,7 +356,7 @@ task motionPlanner () {
 					} else if (profile->cycleCounter >= (profile->t4 + profile->t1) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
 						//J+
 						profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-					} 
+					}
 
 					if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
 						profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
@@ -366,7 +370,7 @@ task motionPlanner () {
 				}
 
 				profile->cycleCounter++;
-				
+
 
 				//get sensor velocity, ticks per second
 				float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
@@ -403,7 +407,7 @@ task motionPlanner () {
 				datalogAddValue (3, profile->motorOutput);
 				datalogAddValue (4, profile->positionSet - *(profile->sensor));
 				datalogAddValue (5, profile->velocityRead);
-				datalogDataGroupEnd();	 
+				datalogDataGroupEnd();
 
 				profile->lastTime = nPgmTime;
 			}
