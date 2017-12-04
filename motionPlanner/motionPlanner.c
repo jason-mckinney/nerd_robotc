@@ -319,7 +319,7 @@ setPosition (int motorPort, int position) {
 void
 setPWMOutput (int motorPort, int output) {
 	if (motorController [motorPort] == NULL)
-		return;	
+		return;
 
 	motorController[motorPort]->profileSetting = 0b00;
 	motorController[motorPort]->motorOutput = output;
@@ -363,6 +363,18 @@ task motionPlanner () {
 
 			int sensorValue = *(profile->sensor);
 
+			//get sensor velocity, ticks per second
+			float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
+
+			for (int j = 4; j > 0; --j) {
+				profile->velocityFilter [j] = profile->velocityFilter [j-1];
+			}
+			profile->velocityFilter [0] = sensorRate;
+
+			sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
+			profile->velocityRead = sensorRate;
+			profile->lastSensorValue = sensorValue;
+
 			if (profile->profileSetting == 0b11) {
 				//get motion profile output
 				if (profile->planComplete == 0) {
@@ -393,26 +405,13 @@ task motionPlanner () {
 
 				profile->cycleCounter++;
 
-
-				//get sensor velocity, ticks per second
-				float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
-
-				for (int j = 4; j > 0; --j) {
-					profile->velocityFilter [j] = profile->velocityFilter [j-1];
-				}
-				profile->velocityFilter [0] = sensorRate;
-
-				sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
-				profile->velocityRead = sensorRate;
-				profile->lastSensorValue = sensorValue;
-
 				//do position PID if cycle includes it
 				if (profile->cycleCounter % profile->positionCycles == 0) {
-				 	profile->positionOut = pidCalculateWithRate (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet - profile->velocityRead);
+				 	profile->positionOut = pidCalculate (profile->positionController, profile->positionSet, *(profile->sensor));
 				}
 
 				//do velocity PID
-				float velocityOut = pidCalculateWithSigma (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead, profile->positionSet - *(profile->sensor));
+				float velocityOut = pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
 
 				//set motor PWM output
 				profile->motorOutput = velocityOut;
@@ -433,18 +432,6 @@ task motionPlanner () {
 
 				profile->lastTime = nPgmTime;
 			} else if (profile->profileSetting == 0b10) {
-				//get sensor velocity, ticks per second
-				float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
-
-				for (int j = 4; j > 0; --j) {
-					profile->velocityFilter [j] = profile->velocityFilter [j-1];
-				}
-				profile->velocityFilter [0] = sensorRate;
-
-				sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
-				profile->velocityRead = sensorRate;
-				profile->lastSensorValue = sensorValue;
-
 				//do velocity PID
 				float velocityOut = pidCalculate (profile->velocityController, profile->velocitySet, profile->velocityRead);
 
