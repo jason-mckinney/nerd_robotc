@@ -1,3 +1,4 @@
+/// \cond IGNORE
 #ifndef TRUESPEED_H
 #define TRUESPEED_H
 
@@ -47,6 +48,7 @@ typedef struct {
 #ifndef PID_C
 #define PID_C
 
+/// \endcond
 /**
  * initialize pid structure, set parameters
  *
@@ -191,6 +193,7 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 #endif
 
 
+/// \cond IGNORE
 #ifndef NERD_MOTIONPLANNER
 #define NERD_MOTIONPLANNER
 
@@ -235,6 +238,8 @@ motionProfiler* uniqueControllers [10];
 
 //sensor variable
 int rawSensorValue [20];
+/// \endcond
+
 
 /**
  * return a pointer to a ROBOTC sensor
