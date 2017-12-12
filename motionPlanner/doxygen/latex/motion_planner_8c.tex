@@ -1,0 +1,412 @@
+\hypertarget{motion_planner_8c}{}\section{motion\+Planner.\+c File Reference}
+\label{motion_planner_8c}\index{motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsection*{Data Structures}
+\begin{DoxyCompactItemize}
+\item 
+struct \hyperlink{struct_p_i_d}{P\+ID}
+\item 
+struct \hyperlink{structmotion_profiler}{motion\+Profiler}
+\end{DoxyCompactItemize}
+\subsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\#define \hyperlink{motion_planner_8c_a0539e40392ac567049e64b8702a1a679}{T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H}
+\item 
+\#define \hyperlink{motion_planner_8c_a921a68decd8b7a0286f657e4f2839ff0}{N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h}
+\item 
+\#define \hyperlink{motion_planner_8c_a56d8cc7537790863f0284e50c4c78ce6}{P\+I\+D\+\_\+C}
+\item 
+\#define \hyperlink{motion_planner_8c_a9a8deb415b6818184cd925709e01f3ea}{N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER}
+\end{DoxyCompactItemize}
+\subsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \hyperlink{motion_planner_8c_ad6e45f67f53a6a3eec3fbd3c0e03d9e7}{pid\+Init} (\hyperlink{struct_p_i_d}{P\+ID} pid, float Kp, float Ki, float Kd, float inner\+Integral\+Band, float outer\+Integral\+Band)
+\item 
+void \hyperlink{motion_planner_8c_a3716b050fba96285a13502b79d13795c}{pid\+Init} (\hyperlink{struct_p_i_d}{P\+ID} pid, \hyperlink{struct_p_i_d}{P\+ID} to\+Copy)
+\item 
+float \hyperlink{motion_planner_8c_a55c32f7660c964a71e288c9efe3a962a}{pid\+Calculate} (\hyperlink{struct_p_i_d}{P\+ID} pid, int set\+Point, int process\+Variable)
+\item 
+float \hyperlink{motion_planner_8c_aea4332a3ded7a93261d8c53e0b83d277}{pid\+Calculate\+With\+Velocity\+Set} (\hyperlink{struct_p_i_d}{P\+ID} pid, int set\+Point, int process\+Variable, int velocity\+Set)
+\item 
+float \hyperlink{motion_planner_8c_acb752ade99450cfce2f7e7ad3f80e9c6}{pid\+Calculate\+Velocity} (\hyperlink{struct_p_i_d}{P\+ID} pid, int set\+Point, int process\+Variable)
+\item 
+int $\ast$ \hyperlink{motion_planner_8c_ac842b4b04041e6a1ca5dfbf4e8652bea}{get\+Raw\+Sensor} (int port)
+\item 
+void \hyperlink{motion_planner_8c_a1b9b6097dd7e4e65093c30e080a19ef1}{create\+Motion\+Profile} (int motor\+Port, int $\ast$sensor, int v\+Max, float Ka, int t1, int t2, int cycle\+Time, int position\+Cycles)
+\item 
+void \hyperlink{motion_planner_8c_a31cfbe0e8576c0a0ea7d6109d092b604}{create\+Motion\+Profile} (int motor\+Port, int $\ast$sensor, int v\+Max)
+\item 
+void \hyperlink{motion_planner_8c_a30ce5d795dc46d722f83c97fde8d3198}{set\+Position\+Controller} (int motor\+Port, float Kp, float Ki, float Kd, float inner\+Band, float outer\+Band)
+\item 
+void \hyperlink{motion_planner_8c_a84c067f5b749396c97f339e18b3916dd}{set\+Velocity\+Controller} (int motor\+Port, float Kp, float Ki, float Kd, float inner\+Band, float outer\+Band)
+\item 
+void \hyperlink{motion_planner_8c_a98a294f0bd0e05a06e4b3ce91fd3b768}{set\+Motion\+Slave} (int motor\+Port, int master\+Port)
+\item 
+void \hyperlink{motion_planner_8c_a14723e38e593eefa92500a993303da0c}{set\+Position} (int motor\+Port, int position)
+\item 
+void \hyperlink{motion_planner_8c_a22e3be616dbc3c49d64c1be6c3d912fa}{set\+P\+W\+M\+Output} (int motor\+Port, int output)
+\item 
+void \hyperlink{motion_planner_8c_a6bfe725c4f5986245fba04d84ba9a725}{set\+Velocity} (int motor\+Port, int velocity)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+const unsigned int \hyperlink{motion_planner_8c_a229bfa76ac5d7171767faff966659a13}{True\+Speed} \mbox{[}128\mbox{]}
+\item 
+\hyperlink{structmotion_profiler}{motion\+Profiler} \hyperlink{motion_planner_8c_ad0aa61a5b536a3d2a6ead32363ae339c}{profiler\+Pool} \mbox{[}10\mbox{]}
+\item 
+\hyperlink{structmotion_profiler}{motion\+Profiler} $\ast$ \hyperlink{motion_planner_8c_a62e1ed7ee302e5c0fbaad855569d20d2}{motor\+Controller} \mbox{[}10\mbox{]}
+\item 
+\hyperlink{structmotion_profiler}{motion\+Profiler} $\ast$ \hyperlink{motion_planner_8c_ab65ef0e079d87415d63002863f3b878c}{unique\+Controllers} \mbox{[}10\mbox{]}
+\item 
+int \hyperlink{motion_planner_8c_a228e60e820f1596a54d9bd830adf2fe6}{raw\+Sensor\+Value} \mbox{[}20\mbox{]}
+\end{DoxyCompactItemize}
+
+
+\subsection{Macro Definition Documentation}
+\mbox{\Hypertarget{motion_planner_8c_a9a8deb415b6818184cd925709e01f3ea}\label{motion_planner_8c_a9a8deb415b6818184cd925709e01f3ea}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER@{N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER}}
+\index{N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER@{N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER}{NERD\_MOTIONPLANNER}}
+{\footnotesize\ttfamily \#define N\+E\+R\+D\+\_\+\+M\+O\+T\+I\+O\+N\+P\+L\+A\+N\+N\+ER}
+
+\mbox{\Hypertarget{motion_planner_8c_a921a68decd8b7a0286f657e4f2839ff0}\label{motion_planner_8c_a921a68decd8b7a0286f657e4f2839ff0}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h@{N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h}}
+\index{N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h@{N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h}{NERD\_PID\_h}}
+{\footnotesize\ttfamily \#define N\+E\+R\+D\+\_\+\+P\+I\+D\+\_\+h}
+
+\mbox{\Hypertarget{motion_planner_8c_a56d8cc7537790863f0284e50c4c78ce6}\label{motion_planner_8c_a56d8cc7537790863f0284e50c4c78ce6}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!P\+I\+D\+\_\+C@{P\+I\+D\+\_\+C}}
+\index{P\+I\+D\+\_\+C@{P\+I\+D\+\_\+C}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{P\+I\+D\+\_\+C}{PID\_C}}
+{\footnotesize\ttfamily \#define P\+I\+D\+\_\+C}
+
+\mbox{\Hypertarget{motion_planner_8c_a0539e40392ac567049e64b8702a1a679}\label{motion_planner_8c_a0539e40392ac567049e64b8702a1a679}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H@{T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H}}
+\index{T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H@{T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H}{TRUESPEED\_H}}
+{\footnotesize\ttfamily \#define T\+R\+U\+E\+S\+P\+E\+E\+D\+\_\+H}
+
+
+
+\subsection{Function Documentation}
+\mbox{\Hypertarget{motion_planner_8c_a1b9b6097dd7e4e65093c30e080a19ef1}\label{motion_planner_8c_a1b9b6097dd7e4e65093c30e080a19ef1}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!create\+Motion\+Profile@{create\+Motion\+Profile}}
+\index{create\+Motion\+Profile@{create\+Motion\+Profile}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{create\+Motion\+Profile()}{createMotionProfile()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily void create\+Motion\+Profile (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int $\ast$}]{sensor,  }\item[{int}]{v\+Max,  }\item[{float}]{Ka,  }\item[{int}]{t1,  }\item[{int}]{t2,  }\item[{int}]{cycle\+Time,  }\item[{int}]{position\+Cycles }\end{DoxyParamCaption})}
+
+create a motion profile for a motor/sensor pair. \hyperlink{struct_p_i_d}{P\+ID} controllers for the motion profile will be set to default with 0 feedback control and a neutral feedforward gain of 127.\+0/v\+Max
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor port to create a profile for \\
+\hline
+{\em sensor} & a pointer to the sensor value to monitor. This can be a pointer to any integer, or a \char`\"{}raw\char`\"{} sensor value using \hyperlink{motion_planner_8c_ac842b4b04041e6a1ca5dfbf4e8652bea}{get\+Raw\+Sensor()}. \\
+\hline
+{\em v\+Max} & the maximum velocity to use when calculating moves \\
+\hline
+{\em Ka} & acceleration constant used when ramping up/down velocity during moves \\
+\hline
+{\em t1} & time to spend at peak acceleration at the beginning/end of a move. This and t2 will determine the shape of the motion curve \\
+\hline
+{\em t2} & time to spend at peak jerk (time derivative of acceleration) at the beginning/end of acceleration. Time to get from 0 to max velocity (or max to 0) = t1 + 2$\ast$t2 \\
+\hline
+{\em cycle\+Time} & polling rate/sample period of system. Polling frequency = 1000/cycle\+Time. Note that ports 2-\/9 on cortex only can update at a frequency of 18.\+5\+Hz, so values less than $\sim$20 here will offer diminishing returns. \\
+\hline
+{\em position\+Cycles} & cycles to skip for position updates during moves. This will generally be 3-\/5 \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a31cfbe0e8576c0a0ea7d6109d092b604}\label{motion_planner_8c_a31cfbe0e8576c0a0ea7d6109d092b604}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!create\+Motion\+Profile@{create\+Motion\+Profile}}
+\index{create\+Motion\+Profile@{create\+Motion\+Profile}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{create\+Motion\+Profile()}{createMotionProfile()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily void create\+Motion\+Profile (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int $\ast$}]{sensor,  }\item[{int}]{v\+Max }\end{DoxyParamCaption})}
+
+create a motion profile for a motor/sensor pair using default timing settings and a Ka of 0. This will provide simple feedforward position/velocity control
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor port to create a profile for \\
+\hline
+{\em sensor} & a pointer to the sensor value to monitor. This can be a pointer to any integer, or a \char`\"{}raw\char`\"{} sensor value using \hyperlink{motion_planner_8c_ac842b4b04041e6a1ca5dfbf4e8652bea}{get\+Raw\+Sensor()}. \\
+\hline
+{\em v\+Max} & the maximum velocity to use when calculating moves \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_ac842b4b04041e6a1ca5dfbf4e8652bea}\label{motion_planner_8c_ac842b4b04041e6a1ca5dfbf4e8652bea}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!get\+Raw\+Sensor@{get\+Raw\+Sensor}}
+\index{get\+Raw\+Sensor@{get\+Raw\+Sensor}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{get\+Raw\+Sensor()}{getRawSensor()}}
+{\footnotesize\ttfamily int$\ast$ get\+Raw\+Sensor (\begin{DoxyParamCaption}\item[{int}]{port }\end{DoxyParamCaption})}
+
+return a pointer to a R\+O\+B\+O\+TC sensor
+
+
+\begin{DoxyParams}{Parameters}
+{\em port} & the sensor value to get a pointer to\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+the pointer to the sensor value 
+\end{DoxyReturn}
+\mbox{\Hypertarget{motion_planner_8c_a55c32f7660c964a71e288c9efe3a962a}\label{motion_planner_8c_a55c32f7660c964a71e288c9efe3a962a}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!pid\+Calculate@{pid\+Calculate}}
+\index{pid\+Calculate@{pid\+Calculate}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{pid\+Calculate()}{pidCalculate()}}
+{\footnotesize\ttfamily float pid\+Calculate (\begin{DoxyParamCaption}\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{pid,  }\item[{int}]{set\+Point,  }\item[{int}]{process\+Variable }\end{DoxyParamCaption})}
+
+calculate pid output
+
+
+\begin{DoxyParams}{Parameters}
+{\em pid} & instance of \hyperlink{struct_p_i_d}{P\+ID} structure \\
+\hline
+{\em set\+Point} & set point of \hyperlink{struct_p_i_d}{P\+ID} controller \\
+\hline
+{\em process\+Variable} & sensor/feedback value\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+output value of the control loop 
+\end{DoxyReturn}
+\mbox{\Hypertarget{motion_planner_8c_acb752ade99450cfce2f7e7ad3f80e9c6}\label{motion_planner_8c_acb752ade99450cfce2f7e7ad3f80e9c6}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!pid\+Calculate\+Velocity@{pid\+Calculate\+Velocity}}
+\index{pid\+Calculate\+Velocity@{pid\+Calculate\+Velocity}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{pid\+Calculate\+Velocity()}{pidCalculateVelocity()}}
+{\footnotesize\ttfamily float pid\+Calculate\+Velocity (\begin{DoxyParamCaption}\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{pid,  }\item[{int}]{set\+Point,  }\item[{int}]{process\+Variable }\end{DoxyParamCaption})}
+
+calculate \hyperlink{struct_p_i_d}{P\+ID} output for velocity control using feedforward instead of an error calculation, but still allowing for I and D components.
+
+
+\begin{DoxyParams}{Parameters}
+{\em pid} & the \hyperlink{struct_p_i_d}{P\+ID} controller to use for the calculation \\
+\hline
+{\em set\+Point} & the set point of the system \\
+\hline
+{\em process\+Variable} & the value of the feedback sensor in the system\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+the output value of the control loop 
+\end{DoxyReturn}
+\mbox{\Hypertarget{motion_planner_8c_aea4332a3ded7a93261d8c53e0b83d277}\label{motion_planner_8c_aea4332a3ded7a93261d8c53e0b83d277}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!pid\+Calculate\+With\+Velocity\+Set@{pid\+Calculate\+With\+Velocity\+Set}}
+\index{pid\+Calculate\+With\+Velocity\+Set@{pid\+Calculate\+With\+Velocity\+Set}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{pid\+Calculate\+With\+Velocity\+Set()}{pidCalculateWithVelocitySet()}}
+{\footnotesize\ttfamily float pid\+Calculate\+With\+Velocity\+Set (\begin{DoxyParamCaption}\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{pid,  }\item[{int}]{set\+Point,  }\item[{int}]{process\+Variable,  }\item[{int}]{velocity\+Set }\end{DoxyParamCaption})}
+
+calculate \hyperlink{struct_p_i_d}{P\+ID} output while velocity control is active. The velocity set point will be subtracted from the time derivative of the error
+
+
+\begin{DoxyParams}{Parameters}
+{\em pid} & the \hyperlink{struct_p_i_d}{P\+ID} controller to use for the calculation \\
+\hline
+{\em set\+Point} & the set point of the system \\
+\hline
+{\em process\+Variable} & the value of the feedback sensor in the system \\
+\hline
+{\em velocity\+Set} & the velocity set point of the system\\
+\hline
+\end{DoxyParams}
+\begin{DoxyReturn}{Returns}
+the output value of the control loop 
+\end{DoxyReturn}
+\mbox{\Hypertarget{motion_planner_8c_ad6e45f67f53a6a3eec3fbd3c0e03d9e7}\label{motion_planner_8c_ad6e45f67f53a6a3eec3fbd3c0e03d9e7}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!pid\+Init@{pid\+Init}}
+\index{pid\+Init@{pid\+Init}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{pid\+Init()}{pidInit()}\hspace{0.1cm}{\footnotesize\ttfamily [1/2]}}
+{\footnotesize\ttfamily void pid\+Init (\begin{DoxyParamCaption}\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{pid,  }\item[{float}]{Kp,  }\item[{float}]{Ki,  }\item[{float}]{Kd,  }\item[{float}]{inner\+Integral\+Band,  }\item[{float}]{outer\+Integral\+Band }\end{DoxyParamCaption})}
+
+initialize pid structure, set parameters
+
+
+\begin{DoxyParams}{Parameters}
+{\em pid} & instance of \hyperlink{struct_p_i_d}{P\+ID} structure \\
+\hline
+{\em Kp} & \hyperlink{struct_p_i_d}{P\+ID} Kp constant \\
+\hline
+{\em Ki} & \hyperlink{struct_p_i_d}{P\+ID} Ki constant \\
+\hline
+{\em Kd} & \hyperlink{struct_p_i_d}{P\+ID} Kd constant \\
+\hline
+{\em inner\+Integral\+Band} & inner bound of \hyperlink{struct_p_i_d}{P\+ID} I summing cutoff \\
+\hline
+{\em outer\+Integral\+Band} & outer bound of \hyperlink{struct_p_i_d}{P\+ID} I summing cutoff \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a3716b050fba96285a13502b79d13795c}\label{motion_planner_8c_a3716b050fba96285a13502b79d13795c}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!pid\+Init@{pid\+Init}}
+\index{pid\+Init@{pid\+Init}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{pid\+Init()}{pidInit()}\hspace{0.1cm}{\footnotesize\ttfamily [2/2]}}
+{\footnotesize\ttfamily void pid\+Init (\begin{DoxyParamCaption}\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{pid,  }\item[{\hyperlink{struct_p_i_d}{P\+ID}}]{to\+Copy }\end{DoxyParamCaption})}
+
+initialize pid structure, set parameters based on another \hyperlink{struct_p_i_d}{P\+ID} structure
+
+
+\begin{DoxyParams}{Parameters}
+{\em pid} & instance of \hyperlink{struct_p_i_d}{P\+ID} structure \\
+\hline
+{\em to\+Copy} & \hyperlink{struct_p_i_d}{P\+ID} instance to copy settings from \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a98a294f0bd0e05a06e4b3ce91fd3b768}\label{motion_planner_8c_a98a294f0bd0e05a06e4b3ce91fd3b768}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+Motion\+Slave@{set\+Motion\+Slave}}
+\index{set\+Motion\+Slave@{set\+Motion\+Slave}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+Motion\+Slave()}{setMotionSlave()}}
+{\footnotesize\ttfamily void set\+Motion\+Slave (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int}]{master\+Port }\end{DoxyParamCaption})}
+
+set a motor to copy another motor\textquotesingle{}s motion profile and mirror its output value
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to have mirror another motor \\
+\hline
+{\em master\+Port} & the motor to mirror \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a14723e38e593eefa92500a993303da0c}\label{motion_planner_8c_a14723e38e593eefa92500a993303da0c}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+Position@{set\+Position}}
+\index{set\+Position@{set\+Position}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+Position()}{setPosition()}}
+{\footnotesize\ttfamily void set\+Position (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int}]{position }\end{DoxyParamCaption})}
+
+issue a move command to the specified position. This will currently do nothing if the move is considered to be a \char`\"{}short move\char`\"{}, ie. the motor is unable to fully ramp up to max velocity during the move. Note that this is an absolute position command, so two consecutive moves to 4000 are not equivalent to a single move to 8000.
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to issue the move command to \\
+\hline
+{\em position} & the position to move to \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a30ce5d795dc46d722f83c97fde8d3198}\label{motion_planner_8c_a30ce5d795dc46d722f83c97fde8d3198}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+Position\+Controller@{set\+Position\+Controller}}
+\index{set\+Position\+Controller@{set\+Position\+Controller}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+Position\+Controller()}{setPositionController()}}
+{\footnotesize\ttfamily void set\+Position\+Controller (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{float}]{Kp,  }\item[{float}]{Ki,  }\item[{float}]{Kd,  }\item[{float}]{inner\+Band,  }\item[{float}]{outer\+Band }\end{DoxyParamCaption})}
+
+set the position \hyperlink{struct_p_i_d}{P\+ID} controller for the specified motor\textquotesingle{}s motion profile
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to update \\
+\hline
+{\em Kp} & proportional gain \\
+\hline
+{\em Ki} & integral gain \\
+\hline
+{\em Kd} & derivative gain \\
+\hline
+{\em inner\+Band} & the inner integral dead\+Band value \\
+\hline
+{\em outer\+Band} & the outer integral dead\+Band value \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a22e3be616dbc3c49d64c1be6c3d912fa}\label{motion_planner_8c_a22e3be616dbc3c49d64c1be6c3d912fa}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+P\+W\+M\+Output@{set\+P\+W\+M\+Output}}
+\index{set\+P\+W\+M\+Output@{set\+P\+W\+M\+Output}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+P\+W\+M\+Output()}{setPWMOutput()}}
+{\footnotesize\ttfamily void set\+P\+W\+M\+Output (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int}]{output }\end{DoxyParamCaption})}
+
+set a motor\textquotesingle{}s output to a value from -\/127 to 127
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to set the output value of \\
+\hline
+{\em output} & output value to set \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a6bfe725c4f5986245fba04d84ba9a725}\label{motion_planner_8c_a6bfe725c4f5986245fba04d84ba9a725}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+Velocity@{set\+Velocity}}
+\index{set\+Velocity@{set\+Velocity}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+Velocity()}{setVelocity()}}
+{\footnotesize\ttfamily void set\+Velocity (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{int}]{velocity }\end{DoxyParamCaption})}
+
+set a motor\textquotesingle{}s velocity to the specified value
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to set \\
+\hline
+{\em velocity} & desired velocity \\
+\hline
+\end{DoxyParams}
+\mbox{\Hypertarget{motion_planner_8c_a84c067f5b749396c97f339e18b3916dd}\label{motion_planner_8c_a84c067f5b749396c97f339e18b3916dd}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!set\+Velocity\+Controller@{set\+Velocity\+Controller}}
+\index{set\+Velocity\+Controller@{set\+Velocity\+Controller}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{set\+Velocity\+Controller()}{setVelocityController()}}
+{\footnotesize\ttfamily void set\+Velocity\+Controller (\begin{DoxyParamCaption}\item[{int}]{motor\+Port,  }\item[{float}]{Kp,  }\item[{float}]{Ki,  }\item[{float}]{Kd,  }\item[{float}]{inner\+Band,  }\item[{float}]{outer\+Band }\end{DoxyParamCaption})}
+
+set the velocity \hyperlink{struct_p_i_d}{P\+ID} controller for the specified motor\textquotesingle{}s motion profile
+
+
+\begin{DoxyParams}{Parameters}
+{\em motor\+Port} & the motor to update \\
+\hline
+{\em Kp} & proportional gain \\
+\hline
+{\em Ki} & integral gain \\
+\hline
+{\em Kd} & derivative gain \\
+\hline
+{\em inner\+Band} & the inner integral dead\+Band value \\
+\hline
+{\em outer\+Band} & the outer integral dead\+Band value \\
+\hline
+\end{DoxyParams}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{motion_planner_8c_a62e1ed7ee302e5c0fbaad855569d20d2}\label{motion_planner_8c_a62e1ed7ee302e5c0fbaad855569d20d2}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!motor\+Controller@{motor\+Controller}}
+\index{motor\+Controller@{motor\+Controller}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{motor\+Controller}{motorController}}
+{\footnotesize\ttfamily \hyperlink{structmotion_profiler}{motion\+Profiler}$\ast$ motor\+Controller\mbox{[}10\mbox{]}}
+
+\mbox{\Hypertarget{motion_planner_8c_ad0aa61a5b536a3d2a6ead32363ae339c}\label{motion_planner_8c_ad0aa61a5b536a3d2a6ead32363ae339c}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!profiler\+Pool@{profiler\+Pool}}
+\index{profiler\+Pool@{profiler\+Pool}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{profiler\+Pool}{profilerPool}}
+{\footnotesize\ttfamily \hyperlink{structmotion_profiler}{motion\+Profiler} profiler\+Pool\mbox{[}10\mbox{]}}
+
+\mbox{\Hypertarget{motion_planner_8c_a228e60e820f1596a54d9bd830adf2fe6}\label{motion_planner_8c_a228e60e820f1596a54d9bd830adf2fe6}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!raw\+Sensor\+Value@{raw\+Sensor\+Value}}
+\index{raw\+Sensor\+Value@{raw\+Sensor\+Value}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{raw\+Sensor\+Value}{rawSensorValue}}
+{\footnotesize\ttfamily int raw\+Sensor\+Value\mbox{[}20\mbox{]}}
+
+\mbox{\Hypertarget{motion_planner_8c_a229bfa76ac5d7171767faff966659a13}\label{motion_planner_8c_a229bfa76ac5d7171767faff966659a13}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!True\+Speed@{True\+Speed}}
+\index{True\+Speed@{True\+Speed}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{True\+Speed}{TrueSpeed}}
+{\footnotesize\ttfamily const unsigned int True\+Speed\mbox{[}128\mbox{]}}
+
+{\bfseries Initial value\+:}
+\begin{DoxyCode}
+=
+\{
+  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+  0, 21, 21, 21, 22, 22, 22, 23, 24, 24,
+ 25, 25, 25, 25, 26, 27, 27, 28, 28, 28,
+ 28, 29, 30, 30, 30, 31, 31, 32, 32, 32,
+ 33, 33, 34, 34, 35, 35, 35, 36, 36, 37,
+ 37, 37, 37, 38, 38, 39, 39, 39, 40, 40,
+ 41, 41, 42, 42, 43, 44, 44, 45, 45, 46,
+ 46, 47, 47, 48, 48, 49, 50, 50, 51, 52,
+ 52, 53, 54, 55, 56, 57, 57, 58, 59, 60,
+ 61, 62, 63, 64, 65, 66, 67, 67, 68, 70,
+ 71, 72, 72, 73, 74, 76, 77, 78, 79, 79,
+ 80, 81, 83, 84, 84, 86, 86, 87, 87, 88,
+ 88, 89, 89, 90, 90,127,127,127
+\}
+\end{DoxyCode}
+True\+Speed lookup table maps linear motor input to logarithmic motor output in order to improve motor control \mbox{\Hypertarget{motion_planner_8c_ab65ef0e079d87415d63002863f3b878c}\label{motion_planner_8c_ab65ef0e079d87415d63002863f3b878c}} 
+\index{motion\+Planner.\+c@{motion\+Planner.\+c}!unique\+Controllers@{unique\+Controllers}}
+\index{unique\+Controllers@{unique\+Controllers}!motion\+Planner.\+c@{motion\+Planner.\+c}}
+\subsubsection{\texorpdfstring{unique\+Controllers}{uniqueControllers}}
+{\footnotesize\ttfamily \hyperlink{structmotion_profiler}{motion\+Profiler}$\ast$ unique\+Controllers\mbox{[}10\mbox{]}}
+

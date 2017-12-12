@@ -23,10 +23,12 @@ const unsigned int TrueSpeed[128] =
 };
 #endif
 
-//----- PID controller -----//
-
 #ifndef NERD_PID_h
 #define NERD_PID_h
+
+/**
+ * PID controller data structure
+ */
 
 typedef struct {
 	float Kp;
@@ -44,15 +46,16 @@ typedef struct {
 
 #ifndef PID_C
 #define PID_C
+
 /**
  * initialize pid structure, set parameters
  *
  * @param pid instance of PID structure
- * @param Kp PID Kp constant
- * @param Ki PID Ki constant
- * @param Kd PID Kd constant
- * @param innerIntegralBand inner bound of PID I summing cutoff
- * @param outerIntegralBand outer bound of PID I summing cutoff
+ * @param Kp  PID Kp constant
+ * @param Ki  PID Ki constant
+ * @param Kd  PID Kd constant
+ * @param innerIntegralBand  inner bound of PID I summing cutoff
+ * @param outerIntegralBand  outer bound of PID I summing cutoff
  */
 void
 pidInit (PID pid, float Kp, float Ki, float Kd, float innerIntegralBand, float outerIntegralBand) {
@@ -86,11 +89,11 @@ void pidInit (PID pid, PID toCopy) {
 /**
  * calculate pid output
  *
- * @param pid instance of PID structure
- * @param setPoint set point of PID controller
- * @param processVariable sensor/feedback value
+ * @param pid  instance of PID structure
+ * @param setPoint  set point of PID controller
+ * @param processVariable  sensor/feedback value
  *
- * @return output value constrained from -127 to 127
+ * @return  output value of the control loop
  */
 float
 pidCalculate (PID pid, int setPoint, int processVariable) {
@@ -117,6 +120,16 @@ pidCalculate (PID pid, int setPoint, int processVariable) {
 	return output;
 }
 
+/**
+ * calculate PID output while velocity control is active. The velocity set point will be subtracted from the time derivative of the error
+ * 
+ * @param pid  the PID controller to use for the calculation
+ * @param setPoint  the set point of the system
+ * @param processVariable  the value of the feedback sensor in the system
+ * @param velocitySet  the velocity set point of the system
+ *
+ * @return  the output value of the control loop
+ */
 float
 pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int velocitySet) {
 	float deltaTime = nPgmTime - pid.lastTime;
@@ -142,6 +155,15 @@ pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int vel
 	return output;
 }
 
+/**
+ * calculate PID output for velocity control using feedforward instead of an error calculation, but still allowing for I and D components.
+ * 
+ * @param pid  the PID controller to use for the calculation
+ * @param setPoint  the set point of the system
+ * @param processVariable  the value of the feedback sensor in the system
+ *
+ * @return  the output value of the control loop
+ */
 float
 pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 	float deltaTime = nPgmTime - pid.lastTime;
@@ -168,7 +190,6 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 }
 #endif
 
-//----- Motion Planner -----//
 
 #ifndef NERD_MOTIONPLANNER
 #define NERD_MOTIONPLANNER
@@ -208,13 +229,20 @@ typedef struct {
 	int positionCycles; //amount of cycles to wait before new position update
 } motionProfiler;
 
-motionProfiler profilerPool[10]; //  because RobotC is trash we need to allocate space for profilers at compile time instead of instantiating them as we need them
+motionProfiler profilerPool[10]; //  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
 motionProfiler* motorController [10];
 motionProfiler* uniqueControllers [10];
 
 //sensor variable
 int rawSensorValue [20];
 
+/**
+ * return a pointer to a ROBOTC sensor
+ *
+ * @param port  the sensor value to get a pointer to
+ *
+ * @return  the pointer to the sensor value
+ */
 int*
 getRawSensor (int port) {
 	if (port < 0 || port > 19)
@@ -222,8 +250,20 @@ getRawSensor (int port) {
 	return &rawSensorValue [port];
 }
 
+/**
+ * create a motion profile for a motor/sensor pair. PID controllers for the motion profile will be set to default with 0 feedback control and a neutral feedforward gain of 127.0/vMax 
+ * 
+ * @param motorPort  the motor port to create a profile for
+ * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
+ * @param vMax  the maximum velocity to use when calculating moves
+ * @param Ka  acceleration constant used when ramping up/down velocity during moves
+ * @param t1  time to spend at peak acceleration at the beginning/end of a move. This and t2 will determine the shape of the motion curve
+ * @param t2  time to spend at peak jerk (time derivative of acceleration) at the beginning/end of acceleration. Time to get from 0 to max velocity (or max to 0) = t1 + 2*t2
+ * @param cycleTime  polling rate/sample period of system. Polling frequency = 1000/cycleTime. Note that ports 2-9 on cortex only can update at a frequency of 18.5Hz, so values less than ~20 here will offer diminishing returns.
+ * @param positionCycles  cycles to skip for position updates during moves. This will generally be 3-5
+ */
 void
-createMotionProfiler (int motorPort, int *sensor, int vMax, float Ka, int t1, int t2, int cycleTime, int positionCycles) {
+createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, int t2, int cycleTime, int positionCycles) {
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
@@ -269,15 +309,32 @@ createMotionProfiler (int motorPort, int *sensor, int vMax, float Ka, int t1, in
 	controller->cycleTime = cycleTime;
 	controller->positionCycles = positionCycles;
 
-	pidInit (controller->positionController, 0.5, 0, 0, 15, 100);
-	pidInit (controller->velocityController, 0.1764, 0, 0, 50, 500);
+	pidInit (controller->positionController, 0, 0, 0, 30, 150);
+	pidInit (controller->velocityController, 127.0/vMax, 0, 0, 50, 500);
 }
 
+/**
+ * create a motion profile for a motor/sensor pair using default timing settings and a Ka of 0. This will provide simple feedforward position/velocity control
+ *
+ * @param motorPort  the motor port to create a profile for
+ * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
+ * @param vMax  the maximum velocity to use when calculating moves
+ */
 void
-createMotionProfiler (int motorPort, int *sensor, int vMax) {
-	createMotionProfiler (motorPort, sensor, vMax, 0.0, 600, 300, 20, 4);
+createMotionProfile (int motorPort, int *sensor, int vMax) {
+	createMotionProfiler (motorPort, sensor, vMax, 0.0, 600, 300, 25, 4);
 }
 
+/**
+ * set the position PID controller for the specified motor's motion profile
+ *
+ * @param motorPort  the motor to update
+ * @param Kp  proportional gain
+ * @param Ki  integral gain
+ * @param Kd  derivative gain
+ * @param innerBand  the inner integral deadBand value
+ * @param outerBand  the outer integral deadBand value
+ */
 void
 setPositionController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
 	if (motorController [motorPort] == NULL)
@@ -287,6 +344,16 @@ setPositionController (int motorPort, float Kp, float Ki, float Kd, float innerB
 	pidInit (profile->positionController, Kp, Ki, Kd, innerBand, outerBand);
 }
 
+/**
+ * set the velocity PID controller for the specified motor's motion profile
+ *
+ * @param motorPort  the motor to update
+ * @param Kp  proportional gain
+ * @param Ki  integral gain
+ * @param Kd  derivative gain
+ * @param innerBand  the inner integral deadBand value
+ * @param outerBand  the outer integral deadBand value
+ */
 void
 setVelocityController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
 	if (motorController [motorPort] == NULL)
@@ -296,6 +363,13 @@ setVelocityController (int motorPort, float Kp, float Ki, float Kd, float innerB
 	pidInit (profile->velocityController, Kp, Ki, Kd, innerBand, outerBand);
 }
 
+
+/**
+ * set a motor to copy another motor's motion profile and mirror its output value
+ *
+ * @param motorPort  the motor to have mirror another motor
+ * @param masterPort  the motor to mirror
+ */
 void
 setMotionSlave (int motorPort, int masterPort) {
 	if (motorController [masterPort] == NULL)
@@ -303,6 +377,13 @@ setMotionSlave (int motorPort, int masterPort) {
 	motorController [motorPort] = motorController [masterPort];
 }
 
+
+/**
+ * issue a move command to the specified position. This will currently do nothing if the move is considered to be a "short move", ie. the motor is unable to fully ramp up to max velocity during the move. Note that this is an absolute position command, so two consecutive moves to 4000 are not equivalent to a single move to 8000.
+ *
+ * @param motorPort  the motor to issue the move command to
+ * @param position  the position to move to
+ */
 void
 setPosition (int motorPort, int position) {
 	if (motorController [motorPort] == NULL)
@@ -332,6 +413,12 @@ setPosition (int motorPort, int position) {
 	profile->planComplete = 0;
 }
 
+/**
+ * set a motor's output to a value from -127 to 127
+ *
+ * @param motorPort  the motor to set the output value of
+ * @param output  output value to set
+ */
 void
 setPWMOutput (int motorPort, int output) {
 	if (motorController [motorPort] == NULL)
@@ -346,6 +433,12 @@ setPWMOutput (int motorPort, int output) {
 	motorController[motorPort]->motorOutput = output;
 }
 
+/**
+ * set a motor's velocity to the specified value
+ *
+ * @param motorPort  the motor to set
+ * @param velocity  desired velocity
+ */
 void
 setVelocity (int motorPort, int velocity) {
 	if (motorController [motorPort] == NULL)
@@ -356,6 +449,7 @@ setVelocity (int motorPort, int velocity) {
 	profile->velocitySet = velocity;
 }
 
+/// @private
 void
 updateMotors () {
 	int i;
@@ -373,6 +467,7 @@ updateMotors () {
 	}
 }
 
+/// @private
 void
 measureVelocity (motionProfiler *profile) {
 	float deltaT = (nPgmTime - profile->lastTime)/1000.0;
@@ -392,6 +487,7 @@ measureVelocity (motionProfiler *profile) {
 	profile->lastSensorValue = sensorV;
 }
 
+/// @private
 void
 velocityUpdate (motionProfiler *profile) {
 	//do velocity PID
@@ -406,6 +502,7 @@ velocityUpdate (motionProfiler *profile) {
 		profile->motorOutput = -127;
 }
 
+/// @private
 void
 positionUpdate (motionProfiler *profile) {
 	//get motion profile output
@@ -455,6 +552,7 @@ positionUpdate (motionProfiler *profile) {
 		profile->motorOutput = -127;
 }
 
+/// @private
 task rawSensorMonitor () {
 	int i;
 
@@ -465,6 +563,7 @@ task rawSensorMonitor () {
 	}
 }
 
+/// @private
 task motionPlanner () {
 	int i;
 
