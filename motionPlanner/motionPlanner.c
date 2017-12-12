@@ -115,31 +115,13 @@ pidCalculate (PID pid, int fSetPoint, int fProcessVariable) {
 }
 
 float
-pidCalculateWithSigma (PID pid, int fSetPoint, int fProcessVariable, int pvSigma) {
+pidCalculateWithVelocitySet (PID pid, int fSetPoint, int fProcessVariable, int velocitySet) {
 	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
 	pid.m_uliLastTime = nPgmTime;
 
 	float fDeltaPV = 0;
 	if(fDeltaTime > 0)
-		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime;
-	pid.m_fLastValue = fProcessVariable;
-
-	float fError = fSetPoint - fProcessVariable;
-
-	pid.m_fSigma = pvSigma;
-
-	float fOutput = fError * pid.m_fKP
-					+ pvSigma * pid.m_fKI
-					- fDeltaPV * pid.m_fKD;
-
-	return fOutput;
-}
-
-float
-pidCalculateWithRate (PID pid, int fSetPoint, int fProcessVariable, float pvDelta) {
-	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
-	pid.m_uliLastTime = nPgmTime;
-
+		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime + velocitySet;
 	pid.m_fLastValue = fProcessVariable;
 
 	float fError = fSetPoint - fProcessVariable;
@@ -152,7 +134,32 @@ pidCalculateWithRate (PID pid, int fSetPoint, int fProcessVariable, float pvDelt
 
 	float fOutput = fError * pid.m_fKP
 					+ pid.m_fSigma * pid.m_fKI
-					- pvDelta * pid.m_fKD;
+					- fDeltaPV * pid.m_fKD;
+
+	return fOutput;
+}
+
+float
+pidCalculateVelocity (PID pid, int fSetPoint, int fProcessVariable) {
+	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
+	pid.m_uliLastTime = nPgmTime;
+
+	float fDeltaPV = 0;
+	if(fDeltaTime > 0)
+		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime;
+	pid.m_fLastValue = fProcessVariable;
+
+	float fError = fSetPoint - fProcessVariable;
+
+	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
+		pid.m_fSigma += fError * fDeltaTime;
+
+	if (fabs (fError) > pid.m_fEpsilonOuter)
+		pid.m_fSigma = 0;
+
+	float fOutput = fSetPoint * pid.m_fKP
+					+ pid.m_fSigma * pid.m_fKI
+					- fDeltaPV * pid.m_fKD;
 
 	return fOutput;
 }
@@ -167,12 +174,14 @@ typedef struct {
 	PID positionController;
 	PID velocityController;
 
+	float Kv;
+	float Ka;
 	int *sensor;
 	int velocityFilter [5];
 	int velocityRead;
 
 	char profileSetting;
-	char cycleCounter;
+	int cycleCounter;
 	short motorOutput;
 	float positionOut;
 	int lastSensorValue;
@@ -192,7 +201,7 @@ typedef struct {
 	int t4; //estimated time assuming constant max velocity
 	int tMax; //total estimated time of profile
 
-	int cycleTime;
+	float cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
 } motionProfiler;
 
@@ -211,11 +220,14 @@ getRawSensor (int port) {
 }
 
 void
-createMotionProfiler (int motorPort, int *sensor, int vMax, int t1, int t2, int cycleTime, int positionCycles) {
+createMotionProfiler (int motorPort, int *sensor, int vMax, float Ka, int t1, int t2, int cycleTime, int positionCycles) {
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
 	if (motorController [motorPort] != NULL)
+		return;
+
+	if (t1 % cycleTime != 0 || t2 % cycleTime != 0)
 		return;
 
 	int i;
@@ -240,6 +252,7 @@ createMotionProfiler (int motorPort, int *sensor, int vMax, int t1, int t2, int 
 	controller->lastTime = nPgmTime;
 	controller->vMax = vMax;
 	controller->positionOut = 0;
+	controller->Ka = Ka;// 0.015;
 
 	controller->velocityFilter[0] = 0;
 	controller->velocityFilter[1] = 0;
@@ -253,13 +266,13 @@ createMotionProfiler (int motorPort, int *sensor, int vMax, int t1, int t2, int 
 	controller->cycleTime = cycleTime;
 	controller->positionCycles = positionCycles;
 
-	pidInit (controller->positionController, 3, 0.001, 0.001, 15, 100);
-	pidInit (controller->velocityController, 0.12, 0.5, 0.01, 50, 500);
+	pidInit (controller->positionController, 0.5, 0, 0, 15, 100);
+	pidInit (controller->velocityController, 0.1764, 0, 0, 50, 500);
 }
 
 void
 createMotionProfiler (int motorPort, int *sensor, int vMax) {
-	createMotionProfiler (motorPort, sensor, vMax, 200, 100, 20, 4);
+	createMotionProfiler (motorPort, sensor, vMax, 0.0, 600, 300, 20, 4);
 }
 
 void
@@ -321,6 +334,11 @@ setPWMOutput (int motorPort, int output) {
 	if (motorController [motorPort] == NULL)
 		return;
 
+	if (output > 127)
+		output = 127;
+	if (output < -127)
+		output = -127;
+
 	motorController[motorPort]->profileSetting = 0b00;
 	motorController[motorPort]->motorOutput = output;
 }
@@ -361,10 +379,12 @@ task motionPlanner () {
 				continue;
 			}
 
-			int sensorValue = *(profile->sensor);
+			float deltaT = (nPgmTime - profile->lastTime)/1000.0;
+			profile->lastTime = nPgmTime;
+			int sensorV = *(profile->sensor);
 
 			//get sensor velocity, ticks per second
-			float sensorRate = (sensorValue - profile->lastSensorValue) / (profile->cycleTime / 1000.0);
+			float sensorRate = (sensorV - profile->lastSensorValue) / deltaT;
 
 			for (int j = 4; j > 0; --j) {
 				profile->velocityFilter [j] = profile->velocityFilter [j-1];
@@ -373,7 +393,7 @@ task motionPlanner () {
 
 			sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
 			profile->velocityRead = sensorRate;
-			profile->lastSensorValue = sensorValue;
+			profile->lastSensorValue = sensorV;
 
 			if (profile->profileSetting == 0b11) {
 				//get motion profile output
@@ -411,7 +431,8 @@ task motionPlanner () {
 				}
 
 				//do velocity PID
-				float velocityOut = pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
+				float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
+				//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
 
 				//set motor PWM output
 				profile->motorOutput = velocityOut;
@@ -421,19 +442,18 @@ task motionPlanner () {
 				else if (profile->motorOutput < -127)
 					profile->motorOutput = -127;
 
-				datalogDataGroupStart();
+				/*datalogDataGroupStart();
 				datalogAddValue (0, profile->accelSet);
 				datalogAddValue (1, profile->velocitySet);
 				datalogAddValue (2, profile->positionSet);
 				datalogAddValue (3, profile->motorOutput);
 				datalogAddValue (4, profile->positionSet - *(profile->sensor));
 				datalogAddValue (5, profile->velocityRead);
-				datalogDataGroupEnd();
+				datalogDataGroupEnd();*/
 
-				profile->lastTime = nPgmTime;
 			} else if (profile->profileSetting == 0b10) {
 				//do velocity PID
-				float velocityOut = pidCalculate (profile->velocityController, profile->velocitySet, profile->velocityRead);
+				float velocityOut = pidCalculateVelocity (profile->velocityController, profile->velocitySet, profile->velocityRead);
 
 				//set motor PWM output
 				profile->motorOutput = velocityOut;
@@ -442,8 +462,6 @@ task motionPlanner () {
 					profile->motorOutput = 127;
 				else if (profile->motorOutput < -127)
 					profile->motorOutput = -127;
-
-				profile->lastTime = nPgmTime;
 			}
 		}
 
