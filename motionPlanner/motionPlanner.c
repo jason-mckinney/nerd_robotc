@@ -356,6 +356,105 @@ setVelocity (int motorPort, int velocity) {
 	profile->velocitySet = velocity;
 }
 
+void
+updateMotors () {
+	int i;
+
+	for (i = 0; i < 10; ++i) {
+		if (motorController [i] == NULL)
+			continue;
+
+		if (motorController [i]->motorOutput > 127)
+			motorController [i]->motorOutput = 127;
+		else if (motorController [i]->motorOutput < -127)
+			motorController [i]->motorOutput = -127;
+
+		motor[i] = sgn(motorController [i]->motorOutput) * TrueSpeed[(int) fabs (motorController [i]->motorOutput)];
+	}
+}
+
+void
+measureVelocity (motionProfiler *profile) {
+	float deltaT = (nPgmTime - profile->lastTime)/1000.0;
+	profile->lastTime = nPgmTime;
+	int sensorV = *(profile->sensor);
+
+	//get sensor velocity, ticks per second
+	float sensorRate = (sensorV - profile->lastSensorValue) / deltaT;
+
+	for (int j = 4; j > 0; --j) {
+		profile->velocityFilter [j] = profile->velocityFilter [j-1];
+	}
+	profile->velocityFilter [0] = sensorRate;
+
+	sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
+	profile->velocityRead = sensorRate;
+	profile->lastSensorValue = sensorV;
+}
+
+void
+velocityUpdate (motionProfiler *profile) {
+	//do velocity PID
+	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->velocitySet, profile->velocityRead);
+
+	//set motor PWM output
+	profile->motorOutput = velocityOut;
+
+	if (profile->motorOutput > 127)
+		profile->motorOutput = 127;
+	else if (profile->motorOutput < -127)
+		profile->motorOutput = -127;
+}
+
+void
+positionUpdate (motionProfiler *profile) {
+	//get motion profile output
+	if (profile->planComplete == 0) {
+		if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
+			//J+
+			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
+		} else if (profile->cycleCounter >= profile->t1 / profile->cycleTime && profile->cycleCounter < (profile->t1 + profile->t2) / profile->cycleTime) {
+			//J-
+			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
+		} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
+			//J-
+			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
+		} else if (profile->cycleCounter >= (profile->t4 + profile->t1) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
+			//J+
+			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
+		}
+
+		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
+			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
+			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
+		} else {
+			profile->velocitySet = 0;
+			profile->positionSet = profile->finalPosition;
+			profile->accelSet = 0;
+			profile->planComplete = 1;
+		}
+	}
+
+	profile->cycleCounter++;
+
+	//do position PID if cycle includes it
+	if (profile->cycleCounter % profile->positionCycles == 0) {
+	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
+	}
+
+	//do velocity PID
+	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
+	//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
+
+	//set motor PWM output
+	profile->motorOutput = velocityOut;
+
+	if (profile->motorOutput > 127)
+		profile->motorOutput = 127;
+	else if (profile->motorOutput < -127)
+		profile->motorOutput = -127;
+}
+
 task rawSensorMonitor () {
 	int i;
 
@@ -382,94 +481,16 @@ task motionPlanner () {
 				continue;
 			}
 
-			float deltaT = (nPgmTime - profile->lastTime)/1000.0;
-			profile->lastTime = nPgmTime;
-			int sensorV = *(profile->sensor);
-
-			//get sensor velocity, ticks per second
-			float sensorRate = (sensorV - profile->lastSensorValue) / deltaT;
-
-			for (int j = 4; j > 0; --j) {
-				profile->velocityFilter [j] = profile->velocityFilter [j-1];
-			}
-			profile->velocityFilter [0] = sensorRate;
-
-			sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
-			profile->velocityRead = sensorRate;
-			profile->lastSensorValue = sensorV;
+			measureVelocity (profile);			
 
 			if (profile->profileSetting == 0b11) {
-				//get motion profile output
-				if (profile->planComplete == 0) {
-					if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
-						//J+
-						profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-					} else if (profile->cycleCounter >= profile->t1 / profile->cycleTime && profile->cycleCounter < (profile->t1 + profile->t2) / profile->cycleTime) {
-						//J-
-						profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-					} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
-						//J-
-						profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-					} else if (profile->cycleCounter >= (profile->t4 + profile->t1) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
-						//J+
-						profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-					}
-
-					if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
-						profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
-						profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
-					} else {
-						profile->velocitySet = 0;
-						profile->positionSet = profile->finalPosition;
-						profile->accelSet = 0;
-						profile->planComplete = 1;
-					}
-				}
-
-				profile->cycleCounter++;
-
-				//do position PID if cycle includes it
-				if (profile->cycleCounter % profile->positionCycles == 0) {
-				 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
-				}
-
-				//do velocity PID
-				float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
-				//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
-
-				//set motor PWM output
-				profile->motorOutput = velocityOut;
-
-				if (profile->motorOutput > 127)
-					profile->motorOutput = 127;
-				else if (profile->motorOutput < -127)
-					profile->motorOutput = -127;
-
+				positionUpdate (profile);
 			} else if (profile->profileSetting == 0b10) {
-				//do velocity PID
-				float velocityOut = pidCalculateVelocity (profile->velocityController, profile->velocitySet, profile->velocityRead);
-
-				//set motor PWM output
-				profile->motorOutput = velocityOut;
-
-				if (profile->motorOutput > 127)
-					profile->motorOutput = 127;
-				else if (profile->motorOutput < -127)
-					profile->motorOutput = -127;
+				velocityUpdate (profile);
 			}
 		}
 
-		for (i = 0; i < 10; ++i) {
-			if (motorController [i] == NULL)
-				continue;
-
-			if (motorController [i]->motorOutput > 127)
-				motorController [i]->motorOutput = 127;
-			else if (motorController [i]->motorOutput < -127)
-				motorController [i]->motorOutput = -127;
-
-			motor[i] = sgn(motorController [i]->motorOutput) * TrueSpeed[(int) fabs (motorController [i]->motorOutput)];
-		}
+		updateMotors ();
 	}
 }
 
