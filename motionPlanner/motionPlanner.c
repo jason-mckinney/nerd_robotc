@@ -1,5 +1,10 @@
 #ifndef TRUESPEED_H
 #define TRUESPEED_H
+
+/**
+ * TrueSpeed lookup table maps linear motor input to logarithmic motor output in order
+ * to improve motor control
+ */
 const unsigned int TrueSpeed[128] =
 {
   0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
@@ -23,19 +28,17 @@ const unsigned int TrueSpeed[128] =
 #ifndef NERD_PID_h
 #define NERD_PID_h
 
-
 typedef struct {
-	float m_fKP;
-	float m_fKI;
-	float m_fKD;
-	float m_fEpsilonInner;
-	float m_fEpsilonOuter;
-	float m_fSigma;
-	float m_fLastValue;
-	unsigned long m_uliLastTime;
-	float m_fLastSetPoint;
+	float Kp;
+	float Ki;
+	float Kd;
+	float innerIntegralBand;
+	float outerIntegralBand;
+	float sigma;
+	float lastValue;
+	unsigned long lastTime;
+	float lastSetPoint;
 } PID;
-
 
 #endif
 
@@ -45,22 +48,22 @@ typedef struct {
  * initialize pid structure, set parameters
  *
  * @param pid instance of PID structure
- * @param fKP PID KP constant
- * @param fKI PID KI constant
- * @param fKD PID KD constant
- * @param fEpsilonInner inner bound of PID I summing cutoff
- * @param fEpsilonOuter outer bound of PID I summing cutoff
+ * @param Kp PID Kp constant
+ * @param Ki PID Ki constant
+ * @param Kd PID Kd constant
+ * @param innerIntegralBand inner bound of PID I summing cutoff
+ * @param outerIntegralBand outer bound of PID I summing cutoff
  */
 void
-pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fEpsilonOuter) {
-	pid.m_fKP = fKP;
-	pid.m_fKI = fKI;
-	pid.m_fKD = fKD;
-	pid.m_fEpsilonInner = fEpsilonInner;
-	pid.m_fEpsilonOuter = fEpsilonOuter;
-	pid.m_fSigma = 0;
-	pid.m_fLastValue = 0;
-	pid.m_uliLastTime = nPgmTime;
+pidInit (PID pid, float Kp, float Ki, float Kd, float innerIntegralBand, float outerIntegralBand) {
+	pid.Kp = Kp;
+	pid.Ki = Ki;
+	pid.Kd = Kd;
+	pid.innerIntegralBand = innerIntegralBand;
+	pid.outerIntegralBand = outerIntegralBand;
+	pid.sigma = 0;
+	pid.lastValue = 0;
+	pid.lastTime = nPgmTime;
 }
 
 /**
@@ -70,98 +73,98 @@ pidInit (PID pid, float fKP, float fKI, float fKD, float fEpsilonInner, float fE
  * @param toCopy  PID instance to copy settings from
  */
 void pidInit (PID pid, PID toCopy) {
-	pid.m_fKP = toCopy.m_fKP;
-	pid.m_fKI = toCopy.m_fKI;
-	pid.m_fKD = toCopy.m_fKD;
-	pid.m_fEpsilonInner = toCopy.m_fEpsilonInner;
-	pid.m_fEpsilonOuter = toCopy.m_fEpsilonOuter;
-	pid.m_fSigma = 0;
-	pid.m_fLastValue = 0;
-	pid.m_uliLastTime = nPgmTime;
+	pid.Kp = toCopy.Ki;
+	pid.Ki = toCopy.Ki;
+	pid.Kd = toCopy.Kd;
+	pid.innerIntegralBand = toCopy.innerIntegralBand;
+	pid.outerIntegralBand = toCopy.outerIntegralBand;
+	pid.sigma = 0;
+	pid.lastValue = 0;
+	pid.lastTime = nPgmTime;
 }
 
 /**
  * calculate pid output
  *
  * @param pid instance of PID structure
- * @param fSetPoint set point of PID controller
- * @param fProcessVariable sensor/feedback value
+ * @param setPoint set point of PID controller
+ * @param processVariable sensor/feedback value
  *
  * @return output value constrained from -127 to 127
  */
 float
-pidCalculate (PID pid, int fSetPoint, int fProcessVariable) {
-	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
-	pid.m_uliLastTime = nPgmTime;
+pidCalculate (PID pid, int setPoint, int processVariable) {
+	float deltaTime = nPgmTime - pid.lastTime;
+	pid.lastTime = nPgmTime;
 
-	float fDeltaPV = 0;
-	if(fDeltaTime > 0)
-		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime;
-	pid.m_fLastValue = fProcessVariable;
+	float deltaPV = 0;
+	if(deltaTime > 0)
+		deltaPV = (processVariable - pid.lastValue) / deltaTime;
+	pid.lastValue = processVariable;
 
-	float fError = fSetPoint - fProcessVariable;
+	float error = setPoint - processVariable;
 
-	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
-		pid.m_fSigma += fError * fDeltaTime;
+	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
+		pid.sigma += error * deltaTime;
 
-	if (fabs (fError) > pid.m_fEpsilonOuter)
-		pid.m_fSigma = 0;
+	if (fabs (error) > pid.outerIntegralBand)
+		pid.sigma = 0;
 
-	float fOutput = fError * pid.m_fKP
-					+ pid.m_fSigma * pid.m_fKI
-					- fDeltaPV * pid.m_fKD;
+	float output = error * pid.Kp
+					+ pid.sigma * pid.Ki
+					- deltaPV * pid.Kd;
 
-	return fOutput;
+	return output;
 }
 
 float
-pidCalculateWithVelocitySet (PID pid, int fSetPoint, int fProcessVariable, int velocitySet) {
-	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
-	pid.m_uliLastTime = nPgmTime;
+pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int velocitySet) {
+	float deltaTime = nPgmTime - pid.lastTime;
+	pid.lastTime = nPgmTime;
 
-	float fDeltaPV = 0;
-	if(fDeltaTime > 0)
-		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime + velocitySet;
-	pid.m_fLastValue = fProcessVariable;
+	float deltaPV = 0;
+	if(deltaTime > 0)
+		deltaPV = (processVariable - pid.lastValue) / deltaTime + velocitySet;
+	pid.lastValue = processVariable;
 
-	float fError = fSetPoint - fProcessVariable;
+	float error = setPoint - processVariable;
 
-	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
-		pid.m_fSigma += fError * fDeltaTime;
+	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
+		pid.sigma += error * deltaTime;
 
-	if (fabs (fError) > pid.m_fEpsilonOuter)
-		pid.m_fSigma = 0;
+	if (fabs (error) > pid.outerIntegralBand)
+		pid.sigma = 0;
 
-	float fOutput = fError * pid.m_fKP
-					+ pid.m_fSigma * pid.m_fKI
-					- fDeltaPV * pid.m_fKD;
+	float output = error * pid.Kp
+					+ pid.sigma * pid.Ki
+					- deltaPV * pid.Kd;
 
-	return fOutput;
+	return output;
 }
 
 float
-pidCalculateVelocity (PID pid, int fSetPoint, int fProcessVariable) {
-	float fDeltaTime = nPgmTime - pid.m_uliLastTime;
-	pid.m_uliLastTime = nPgmTime;
+pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
+	float deltaTime = nPgmTime - pid.lastTime;
+	pid.lastTime = nPgmTime;
 
-	float fDeltaPV = 0;
-	if(fDeltaTime > 0)
-		fDeltaPV = (fProcessVariable - pid.m_fLastValue) / fDeltaTime;
-	pid.m_fLastValue = fProcessVariable;
+	float deltaPV = 0;
+	if(deltaTime > 0)
+		deltaPV = (processVariable - pid.lastValue) / deltaTime;
+	pid.lastValue = processVariable;
 
-	float fError = fSetPoint - fProcessVariable;
+	float error = setPoint - processVariable;
 
-	if(fabs(fError) > pid.m_fEpsilonInner && fabs(fError) < pid.m_fEpsilonOuter)
-		pid.m_fSigma += fError * fDeltaTime;
+	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
+		pid.sigma += error * deltaTime;
 
-	if (fabs (fError) > pid.m_fEpsilonOuter)
-		pid.m_fSigma = 0;
+	if (fabs (error) > pid.outerIntegralBand)
+		pid.sigma = 0;
 
-	float fOutput = fSetPoint * pid.m_fKP
-					+ pid.m_fSigma * pid.m_fKI
-					- fDeltaPV * pid.m_fKD;
+	float output = setPoint * pid.Kp
+					+ pid.sigma * pid.Ki
+					- deltaPV * pid.Kd;
 
-	return fOutput;
+	return output;
 }
 #endif
 
@@ -276,21 +279,21 @@ createMotionProfiler (int motorPort, int *sensor, int vMax) {
 }
 
 void
-setPositionController (int motorPort, float kP, float kI, float kD, float innerBand, float outerBand) {
+setPositionController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
 	if (motorController [motorPort] == NULL)
 		return;
 
 	motionProfiler *profile = motorController [motorPort];
-	pidInit (profile->positionController, kP, kI, kD, innerBand, outerBand);
+	pidInit (profile->positionController, Kp, Ki, Kd, innerBand, outerBand);
 }
 
 void
-setVelocityController (int motorPort, float kP, float kI, float kD, float innerBand, float outerBand) {
+setVelocityController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
 	if (motorController [motorPort] == NULL)
 		return;
 
 	motionProfiler *profile = motorController [motorPort];
-	pidInit (profile->velocityController, kP, kI, kD, innerBand, outerBand);
+	pidInit (profile->velocityController, Kp, Ki, Kd, innerBand, outerBand);
 }
 
 void
@@ -427,7 +430,7 @@ task motionPlanner () {
 
 				//do position PID if cycle includes it
 				if (profile->cycleCounter % profile->positionCycles == 0) {
-				 	profile->positionOut = pidCalculate (profile->positionController, profile->positionSet, *(profile->sensor));
+				 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
 				}
 
 				//do velocity PID
@@ -441,15 +444,6 @@ task motionPlanner () {
 					profile->motorOutput = 127;
 				else if (profile->motorOutput < -127)
 					profile->motorOutput = -127;
-
-				/*datalogDataGroupStart();
-				datalogAddValue (0, profile->accelSet);
-				datalogAddValue (1, profile->velocitySet);
-				datalogAddValue (2, profile->positionSet);
-				datalogAddValue (3, profile->motorOutput);
-				datalogAddValue (4, profile->positionSet - *(profile->sensor));
-				datalogAddValue (5, profile->velocityRead);
-				datalogDataGroupEnd();*/
 
 			} else if (profile->profileSetting == 0b10) {
 				//do velocity PID
