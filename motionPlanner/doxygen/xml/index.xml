@@ -1,54 +1,6 @@
 <?xml version='1.0' encoding='UTF-8' standalone='no'?>
 <doxygenindex xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="index.xsd" version="1.8.13">
-  <compound refid="structmotion_profiler" kind="struct"><name>motionProfiler</name>
-    <member refid="structmotion_profiler_1a6af58c8bbf5ff2a9657b3003a6521db0" kind="variable"><name>positionController</name></member>
-    <member refid="structmotion_profiler_1a731ffc5dde37d1e3bb373311c7f84d61" kind="variable"><name>velocityController</name></member>
-    <member refid="structmotion_profiler_1a9dd79979f873707ff49614e3d2b05371" kind="variable"><name>Kv</name></member>
-    <member refid="structmotion_profiler_1af7e0be223ca11bc5e95332a223a5a410" kind="variable"><name>Ka</name></member>
-    <member refid="structmotion_profiler_1ac45c58330bcdae28978c77a6cfde8f72" kind="variable"><name>sensor</name></member>
-    <member refid="structmotion_profiler_1aa5d8685398a6a8a736ee930be4de1d64" kind="variable"><name>velocityFilter</name></member>
-    <member refid="structmotion_profiler_1abab91ecaedaa0da8ff8efb499269ff0a" kind="variable"><name>velocityRead</name></member>
-    <member refid="structmotion_profiler_1af1c26d55aae953850de4497090f96033" kind="variable"><name>profileSetting</name></member>
-    <member refid="structmotion_profiler_1a7568fe510550cda7e14714cb1940ca8f" kind="variable"><name>cycleCounter</name></member>
-    <member refid="structmotion_profiler_1a596a165e0e260065d862d418d84c7f6b" kind="variable"><name>motorOutput</name></member>
-    <member refid="structmotion_profiler_1ae3c797ea09227486617f837045db17ce" kind="variable"><name>positionOut</name></member>
-    <member refid="structmotion_profiler_1a0f19b669e85c8c71ac80e985351be173" kind="variable"><name>lastSensorValue</name></member>
-    <member refid="structmotion_profiler_1ab17786ea0ccd57d2b527d06143e22c15" kind="variable"><name>lastTime</name></member>
-    <member refid="structmotion_profiler_1a49d3333b9018fe1b2454e56c30a72311" kind="variable"><name>finalPosition</name></member>
-    <member refid="structmotion_profiler_1ae45782f37eaa20c9ccb117874abc7ff2" kind="variable"><name>positionSet</name></member>
-    <member refid="structmotion_profiler_1abecf199e03d7c61b7694435888364aaf" kind="variable"><name>velocitySet</name></member>
-    <member refid="structmotion_profiler_1ae3f53b386932f91b87cfd744c4532603" kind="variable"><name>accelSet</name></member>
-    <member refid="structmotion_profiler_1ad12385a16c1e70621af252dc46ddd611" kind="variable"><name>jerk</name></member>
-    <member refid="structmotion_profiler_1a8b7b1cd195d2ce0981b7d4e85675896a" kind="variable"><name>planComplete</name></member>
-    <member refid="structmotion_profiler_1a939c9510d8065a680fb9390dc98c89d9" kind="variable"><name>vMax</name></member>
-    <member refid="structmotion_profiler_1a1f006058637a82726360f71ab3396f0e" kind="variable"><name>t1</name></member>
-    <member refid="structmotion_profiler_1aa931d62492a0ef5a5a1ff1a2ed78d9c6" kind="variable"><name>t2</name></member>
-    <member refid="structmotion_profiler_1a3d25457e1add6ee8836d29f078e7cc1b" kind="variable"><name>t4</name></member>
-    <member refid="structmotion_profiler_1a8b70c4e6e7bfb03961f944751725e6f2" kind="variable"><name>tMax</name></member>
-    <member refid="structmotion_profiler_1a937382b7ba919b74e49bb7686a3b86c6" kind="variable"><name>cycleTime</name></member>
-    <member refid="structmotion_profiler_1a519d6d21d377d231f1c947d83de92841" kind="variable"><name>positionCycles</name></member>
-  </compound>
-  <compound refid="struct_p_i_d" kind="struct"><name>PID</name>
-    <member refid="struct_p_i_d_1a09cfc766a233ad617270562cc4146d07" kind="variable"><name>Kp</name></member>
-    <member refid="struct_p_i_d_1a59fac16f568541187ff485c4c47b0ec5" kind="variable"><name>Ki</name></member>
-    <member refid="struct_p_i_d_1a98268d71502ba080d88a9b1f50fdbe80" kind="variable"><name>Kd</name></member>
-    <member refid="struct_p_i_d_1a032c3f5739e042d209c972fc31e57fe3" kind="variable"><name>innerIntegralBand</name></member>
-    <member refid="struct_p_i_d_1a02d0ee6d23eee5716d8e390aa387f237" kind="variable"><name>outerIntegralBand</name></member>
-    <member refid="struct_p_i_d_1ae11aeeb83e22b5b7f1e6b4347eb1daa6" kind="variable"><name>sigma</name></member>
-    <member refid="struct_p_i_d_1a437b26536f3832d38c5d783076d310b1" kind="variable"><name>lastValue</name></member>
-    <member refid="struct_p_i_d_1a22cb446e5271d5d2c4b2e23792fb1966" kind="variable"><name>lastTime</name></member>
-    <member refid="struct_p_i_d_1a43ff6047780f4de51e46ea718c221fca" kind="variable"><name>lastSetPoint</name></member>
-  </compound>
   <compound refid="motion_planner_8c" kind="file"><name>motionPlanner.c</name>
-    <member refid="motion_planner_8c_1a0539e40392ac567049e64b8702a1a679" kind="define"><name>TRUESPEED_H</name></member>
-    <member refid="motion_planner_8c_1a921a68decd8b7a0286f657e4f2839ff0" kind="define"><name>NERD_PID_h</name></member>
-    <member refid="motion_planner_8c_1a56d8cc7537790863f0284e50c4c78ce6" kind="define"><name>PID_C</name></member>
-    <member refid="motion_planner_8c_1a9a8deb415b6818184cd925709e01f3ea" kind="define"><name>NERD_MOTIONPLANNER</name></member>
-    <member refid="motion_planner_8c_1a229bfa76ac5d7171767faff966659a13" kind="variable"><name>TrueSpeed</name></member>
-    <member refid="motion_planner_8c_1ad0aa61a5b536a3d2a6ead32363ae339c" kind="variable"><name>profilerPool</name></member>
-    <member refid="motion_planner_8c_1a62e1ed7ee302e5c0fbaad855569d20d2" kind="variable"><name>motorController</name></member>
-    <member refid="motion_planner_8c_1ab65ef0e079d87415d63002863f3b878c" kind="variable"><name>uniqueControllers</name></member>
-    <member refid="motion_planner_8c_1a228e60e820f1596a54d9bd830adf2fe6" kind="variable"><name>rawSensorValue</name></member>
     <member refid="motion_planner_8c_1ad6e45f67f53a6a3eec3fbd3c0e03d9e7" kind="function"><name>pidInit</name></member>
     <member refid="motion_planner_8c_1a3716b050fba96285a13502b79d13795c" kind="function"><name>pidInit</name></member>
     <member refid="motion_planner_8c_1a55c32f7660c964a71e288c9efe3a962a" kind="function"><name>pidCalculate</name></member>
