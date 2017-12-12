@@ -1,0 +1,141 @@
+<?xml version='1.0' encoding='UTF-8' standalone='no'?>
+<doxygen xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="compound.xsd" version="1.8.13">
+  <compounddef id="struct_p_i_d" kind="struct" language="C++" prot="public">
+    <compoundname>PID</compoundname>
+      <sectiondef kind="public-attrib">
+      <memberdef kind="variable" id="struct_p_i_d_1a09cfc766a233ad617270562cc4146d07" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float Kp</definition>
+        <argsstring></argsstring>
+        <name>Kp</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="34" column="1" bodyfile="motionPlanner.c" bodystart="34" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a59fac16f568541187ff485c4c47b0ec5" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float Ki</definition>
+        <argsstring></argsstring>
+        <name>Ki</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="35" column="1" bodyfile="motionPlanner.c" bodystart="35" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a98268d71502ba080d88a9b1f50fdbe80" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float Kd</definition>
+        <argsstring></argsstring>
+        <name>Kd</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="36" column="1" bodyfile="motionPlanner.c" bodystart="36" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a032c3f5739e042d209c972fc31e57fe3" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float innerIntegralBand</definition>
+        <argsstring></argsstring>
+        <name>innerIntegralBand</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="37" column="1" bodyfile="motionPlanner.c" bodystart="37" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a02d0ee6d23eee5716d8e390aa387f237" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float outerIntegralBand</definition>
+        <argsstring></argsstring>
+        <name>outerIntegralBand</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="38" column="1" bodyfile="motionPlanner.c" bodystart="38" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1ae11aeeb83e22b5b7f1e6b4347eb1daa6" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float sigma</definition>
+        <argsstring></argsstring>
+        <name>sigma</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="39" column="1" bodyfile="motionPlanner.c" bodystart="39" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a437b26536f3832d38c5d783076d310b1" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float lastValue</definition>
+        <argsstring></argsstring>
+        <name>lastValue</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="40" column="1" bodyfile="motionPlanner.c" bodystart="40" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a22cb446e5271d5d2c4b2e23792fb1966" prot="public" static="no" mutable="no">
+        <type>unsigned long</type>
+        <definition>unsigned long lastTime</definition>
+        <argsstring></argsstring>
+        <name>lastTime</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="41" column="1" bodyfile="motionPlanner.c" bodystart="41" bodyend="-1"/>
+      </memberdef>
+      <memberdef kind="variable" id="struct_p_i_d_1a43ff6047780f4de51e46ea718c221fca" prot="public" static="no" mutable="no">
+        <type>float</type>
+        <definition>float lastSetPoint</definition>
+        <argsstring></argsstring>
+        <name>lastSetPoint</name>
+        <briefdescription>
+        </briefdescription>
+        <detaileddescription>
+        </detaileddescription>
+        <inbodydescription>
+        </inbodydescription>
+        <location file="motionPlanner.c" line="42" column="1" bodyfile="motionPlanner.c" bodystart="42" bodyend="-1"/>
+      </memberdef>
+      </sectiondef>
+    <briefdescription>
+    </briefdescription>
+    <detaileddescription>
+<para><ref refid="struct_p_i_d" kindref="compound">PID</ref> controller data structure </para>    </detaileddescription>
+    <location file="motionPlanner.c" line="33" column="1" bodyfile="motionPlanner.c" bodystart="33" bodyend="43"/>
+    <listofallmembers>
+      <member refid="struct_p_i_d_1a032c3f5739e042d209c972fc31e57fe3" prot="public" virt="non-virtual"><scope>PID</scope><name>innerIntegralBand</name></member>
+      <member refid="struct_p_i_d_1a98268d71502ba080d88a9b1f50fdbe80" prot="public" virt="non-virtual"><scope>PID</scope><name>Kd</name></member>
+      <member refid="struct_p_i_d_1a59fac16f568541187ff485c4c47b0ec5" prot="public" virt="non-virtual"><scope>PID</scope><name>Ki</name></member>
+      <member refid="struct_p_i_d_1a09cfc766a233ad617270562cc4146d07" prot="public" virt="non-virtual"><scope>PID</scope><name>Kp</name></member>
+      <member refid="struct_p_i_d_1a43ff6047780f4de51e46ea718c221fca" prot="public" virt="non-virtual"><scope>PID</scope><name>lastSetPoint</name></member>
+      <member refid="struct_p_i_d_1a22cb446e5271d5d2c4b2e23792fb1966" prot="public" virt="non-virtual"><scope>PID</scope><name>lastTime</name></member>
+      <member refid="struct_p_i_d_1a437b26536f3832d38c5d783076d310b1" prot="public" virt="non-virtual"><scope>PID</scope><name>lastValue</name></member>
+      <member refid="struct_p_i_d_1a02d0ee6d23eee5716d8e390aa387f237" prot="public" virt="non-virtual"><scope>PID</scope><name>outerIntegralBand</name></member>
+      <member refid="struct_p_i_d_1ae11aeeb83e22b5b7f1e6b4347eb1daa6" prot="public" virt="non-virtual"><scope>PID</scope><name>sigma</name></member>
+    </listofallmembers>
+  </compounddef>
+</doxygen>
