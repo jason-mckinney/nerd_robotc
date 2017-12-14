@@ -270,18 +270,26 @@ getRawSensor (int port) {
  * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
  * @param vMax  the maximum velocity to use when calculating moves
  * @param Ka  acceleration constant used when ramping up/down velocity during moves
- * @param t1  time to spend at peak acceleration at the beginning/end of a move. This and t2 will determine the shape of the motion curve
- * @param t2  time to spend at peak jerk (time derivative of acceleration) at the beginning/end of acceleration. Time to get from 0 to max velocity (or max to 0) = t1 + 2*t2
+ * @param t1  time to spend at peak acceleration at the beginning/end of a move. This and jerkLimit will determine the shape of the motion curve
+ * @param jerkLimit  the amount to limit the jerk by (0.0 to 1.0). The higher this value is, the more curved the acceleration profile will be. This should usually be 0.5
  * @param cycleTime  polling rate/sample period of system. Polling frequency = 1000/cycleTime. Note that ports 2-9 on cortex only can update at a frequency of 18.5Hz, so values less than ~20 here will offer diminishing returns.
  * @param positionCycles  cycles to skip for position updates during moves. This will generally be 3-5
  */
 void
-createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, int t2, int cycleTime, int positionCycles) {
+createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
 	if (motorController [motorPort] != NULL)
 		return;
+
+	if (jerkLimit > 1.0)
+		jerkLimit = 1.0;
+	if (jerkLimit < 0)
+		jerkLimit = 0;
+
+	int t2 = t1/2.0 * jerkLimit;
+	t2 -= t2 % cycleTime;
 
 	if (t1 % cycleTime != 0 || t2 % cycleTime != 0)
 		return;
@@ -336,7 +344,7 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, int
  */
 void
 createDefaultMotionProfile (int motorPort, int *sensor, int vMax) {
-	createMotionProfile (motorPort, sensor, vMax, 0.0, 600, 300, 25, 4);
+	createMotionProfile (motorPort, sensor, vMax, 0.0, 600, 0.5, 25, 4);
 }
 
 /**
@@ -454,7 +462,12 @@ setPosition (int motorPort, int position) {
 		profile->profileSetting = SETTING_1D_MOVE;
 		profile->finalPosition = position;
 		profile->tMax = profile->t1 + profile->t4;
-		profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0)/(profile->t2/1000.0);
+	
+		if (profile->t2 != 0) 
+			profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0)/(profile->t2/1000.0);
+		else
+			profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0);
+
 		profile->accelSet = 0;
 		profile->velocitySet = 0;
 		profile->positionSet = 0;
@@ -577,20 +590,29 @@ void
 positionUpdate (motionProfiler *profile) {
 	//get motion profile output
 	if (profile->planComplete == 0) {
-		if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
-			//J+
-			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-		} else if (profile->cycleCounter >= (profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->t1 / profile->cycleTime) {
-			//J-
-			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-		} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
-			//J-
-			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-		} else if (profile->cycleCounter >= (profile->t4 + profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
-			//J+
-			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
+		if (profile->t2 != 0) {
+			if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
+				//J+
+				profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
+			} else if (profile->cycleCounter >= (profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->t1 / profile->cycleTime) {
+				//J-
+				profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
+			} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
+				//J-
+				profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
+			} else if (profile->cycleCounter >= (profile->t4 + profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
+				//J+
+				profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
+			}
+		} else {
+			if (profile->cycleCounter < profile->t1 / profile->cycleTime) {
+				profile->accelSet = profile->jerk;
+			} else if (profile->cycleCounter > profile->t4 / profile->cycleTime && profile->cycleCounter < profile->tMax / profile->cycleTime) {
+				profile->accelSet = -1 * profile->jerk;
+			} else {
+				profile->accelSet = 0;
+			}
 		}
-
 		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
 			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
 
