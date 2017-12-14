@@ -272,5 +272,4 @@ gyroGetRate (Gyro gyro){
 			return gyroVoltage / gyro.config.voltsPerDPS;
 	return 0;
 }
-
 #endif
