@@ -437,8 +437,8 @@ setPosition (int motorPort, int position) {
 	if (profile->t4 < profile->t1 + profile->t2) {
 		profile->profileSetting = SETTING_1D_SHORT_MOVE;
 		profile->finalPosition = position;
-		profile->tMax = 2000.0 * profile->finalPosition / profile->vMax;
-		profile->jerk = 0;
+		profile->tMax = 2000.0 * fabs(profile->finalPosition) / profile->vMax;
+		profile->jerk = sgn (distance);
 		profile->accelSet = 0;
 		profile->velocitySet = 0;
 		profile->positionSet = 0;
@@ -583,7 +583,10 @@ positionUpdate (motionProfiler *profile) {
 
 		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
 			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
+
 			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
+			if (fabs(profile->positionSet) > fabs(profile->finalPosition))
+				profile->positionSet = profile->finalPosition;
 		} else {
 			profile->velocitySet = 0;
 			profile->positionSet = profile->finalPosition;
@@ -618,14 +621,17 @@ shortPositionUpdate (motionProfiler *profile) {
 	//get motion profile output
 	if (profile->planComplete == 0) {
 		if (profile->cycleCounter * profile->cycleTime < profile->tMax/2.0) {
-			profile->accelSet = profile->vMax*2.0/(profile->tMax/1000.0);
+			profile->accelSet = sgn (profile->jerk) * (profile->vMax*2.0/(profile->tMax/1000.0));
 		} else if (profile->cycleCounter * profile->cycleTime < profile->tMax) {
-			profile->accelSet = -1.0*profile->vMax*2.0/(profile->tMax/1000.0);
+			profile->accelSet = sgn (profile->jerk) * (-1.0*profile->vMax*2.0/(profile->tMax/1000.0));
 		}
 
 		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
 			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
 			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
+
+			if ((profile->jerk < 0 && profile->positionSet < profile->finalPosition) || (profile->jerk > 0 && profile->positionSet > profile->finalPosition))
+				profile->positionSet = profile->finalPosition;
 		} else {
 			profile->velocitySet = 0;
 			profile->positionSet = profile->finalPosition;
