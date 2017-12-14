@@ -99,7 +99,7 @@ void pidInitCopy (PID pid, PID toCopy) {
  */
 float
 pidCalculate (PID pid, int setPoint, int processVariable) {
-	float deltaTime = nPgmTime - pid.lastTime;
+	float deltaTime = (nPgmTime - pid.lastTime)/1000.0;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
@@ -134,7 +134,7 @@ pidCalculate (PID pid, int setPoint, int processVariable) {
  */
 float
 pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int velocitySet) {
-	float deltaTime = nPgmTime - pid.lastTime;
+	float deltaTime = (nPgmTime - pid.lastTime)/1000.0;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
@@ -168,7 +168,7 @@ pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int vel
  */
 float
 pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
-	float deltaTime = nPgmTime - pid.lastTime;
+	float deltaTime = (nPgmTime - pid.lastTime)/1000.0;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
@@ -446,6 +446,10 @@ setPosition (int motorPort, int position) {
 		profile->motorOutput = 0;
 		profile->cycleCounter = 0;
 		profile->planComplete = 0;
+		profile->positionController.lastTime = nPgmTime;
+		profile->velocityController.lastTime = nPgmTime;
+		profile->positionController.lastValue = *(profile->sensor);
+		profile->velocityController.lastValue = profile->velocityRead;
 	} else {
 		profile->profileSetting = SETTING_1D_MOVE;
 		profile->finalPosition = position;
@@ -458,6 +462,10 @@ setPosition (int motorPort, int position) {
 		profile->motorOutput = 0;
 		profile->cycleCounter = 0;
 		profile->planComplete = 0;
+		profile->positionController.lastTime = nPgmTime;
+		profile->velocityController.lastTime = nPgmTime;
+		profile->positionController.lastValue = *(profile->sensor);
+		profile->velocityController.lastValue = profile->velocityRead;
 	}
 }
 
@@ -495,6 +503,8 @@ setVelocity (int motorPort, int velocity) {
 	motionProfiler *profile = motorController[motorPort];
 	profile->profileSetting = SETTING_VELOCITY;
 	profile->velocitySet = velocity;
+	profile->velocityController.lastTime = nPgmTime;
+	profile->velocityController.lastValue = profile->velocityRead;
 }
 
 /// @private
@@ -649,7 +659,6 @@ shortPositionUpdate (motionProfiler *profile) {
 
 	//do velocity PID
 	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
-	//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
 
 	//set motor PWM output
 	profile->motorOutput = velocityOut;
