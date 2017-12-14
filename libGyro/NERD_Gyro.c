@@ -1,14 +1,29 @@
-#include "NERD_Gyro.h"
+#ifndef NERD_GYRO
+#define NERD_GYRO
+
+
+struct gyroConfig{
+	float stdDev;
+	float avg;
+	float voltsPerDPS;
+	bool gyroFlipped;
+};
+
+typedef struct {
+	struct gyroConfig config;
+	float angle;
+	int portNum;
+} Gyro;
 
 //ignore data within n standard deviations of no motion average
-#define GYRO_STD_DEVS 4
+#define GYRO_STD_DEVS 3
 
-#define GYRO_OVERSAMPLE 2
+#define GYRO_OVERSAMPLE 1
 
 //points or time in mSec that the gyro calibrates for
 #define GYRO_CALIBRATION_POINTS 2000
 
-float rgfRaw[GYRO_CALIBRATION_POINTS];
+float calibrationBuffer [GYRO_CALIBRATION_POINTS];
 
 /**
  * generate calibration data for the gyro by collecting
@@ -18,26 +33,26 @@ float rgfRaw[GYRO_CALIBRATION_POINTS];
  */
 void
 gyroCalibrate (Gyro gyro){
-	float fRawAverage = 0.0;
-	float fStdDev = 0.0;
+	float rawAverage = 0.0;
+	float stdDev = 0.0;
 
 	//calculate average gyro reading with no motion
 	for(int i = 0; i < GYRO_CALIBRATION_POINTS; ++i){
-		float fRaw = SensorValue (gyro.m_iPortNum);
-		fRawAverage += fRaw;
-		rgfRaw [i] = fRaw;
+		float raw = SensorValue (gyro.portNum);
+		rawAverage += raw;
+		calibrationBuffer [i] = raw;
 		delay (1);
 	}
-	fRawAverage /= GYRO_CALIBRATION_POINTS;
-	gyro.m_config.m_fAvg = fRawAverage;
+	rawAverage /= GYRO_CALIBRATION_POINTS;
+	gyro.config.avg = rawAverage;
 
 	//calcuate the standard devation, or the average distance
 	//from the average on the data read
 	for (int i = 0; i < GYRO_CALIBRATION_POINTS; ++i)
-		fStdDev += fabs (fRawAverage - rgfRaw [i]);
-	fStdDev /= (float) GYRO_CALIBRATION_POINTS;
+		stdDev += fabs (rawAverage - calibrationBuffer [i]);
+	stdDev /= (float) GYRO_CALIBRATION_POINTS;
 
-	gyro.m_config.m_fStdDev = fStdDev;
+	gyro.config.stdDev = stdDev;
 
 	/*
 	 * Datasheet from VEX indicates that the sensitivity of the gyro is 1.1mV/dps
@@ -46,19 +61,19 @@ gyroCalibrate (Gyro gyro){
 	 * that the actual chip has to work on the cortex's 5v logic voltage. The scale multiplier
 	 * value is in the ballpark of 1.515.
 	 *///1.0608
-	float zeroRate = fRawAverage * 5.0 / 4095.0;
-	gyro.m_config.m_fVoltsPerDPS = (0.0011 * 1.515) * (2.2725 / zeroRate);
+	float zeroRate = rawAverage * 5.0 / 4095.0;
+	gyro.config.voltsPerDPS = 0.0011 * 1.515;
 }
 
 /**
  * initialize gyro and run the calibration subroutine
  *
  * @param gyro instance of gyro structure
- * @param iPortNum the port number of the gyro
+ * @param portNum the port number of the gyro
  */
 void
-gyroInit (Gyro gyro, int iPortNum) {
-	gyro.m_iPortNum = iPortNum;
+gyroInit (Gyro gyro, int portNum) {
+	gyro.portNum = portNum;
 	gyroCalibrate (gyro);
 }
 
@@ -73,7 +88,7 @@ gyroInit (Gyro gyro, int iPortNum) {
  */
 float
 gyroGetRate (Gyro gyro){
-	float fGyroRead = 0.0;
+	float gyroRead = 0.0;
 
 	#if defined (GYRO_OVERSAMPLE)
 		if (GYRO_OVERSAMPLE > 0) {
@@ -81,25 +96,26 @@ gyroGetRate (Gyro gyro){
 			int nSamples = pow (4, GYRO_OVERSAMPLE);
 
 			for (int i = 0; i < nSamples; ++i)
-				sampleSum += SensorValue(gyro.m_iPortNum);
-			fGyroRead = (float) sampleSum / (float) nSamples;
+				sampleSum += SensorValue(gyro.portNum);
+			gyroRead = (float) sampleSum / (float) nSamples;
 		}
 		else
-			fGyroRead = SensorValue (gyro.m_iPortNum);
+			gyroRead = SensorValue (gyro.portNum);
 	#else
-		fGyroRead = SensorValue (gyro.m_iPortNum);
+		gyroRead = SensorValue (gyro.portNum);
 	#endif
 
 	//Difference from zero-rate value or the average calibration read
-	float fGyroDiff = fGyroRead - gyro.m_config.m_fAvg;
+	float gyroDiff = gyroRead - gyro.config.avg;
 
 	//Difference fro zero-rate value, in volts
-	float fGyroVoltage = fGyroDiff * 5.0 / 4095.0;
+	float gyroVoltage = gyroDiff * 5.0 / 4095.0;
 
-	if (fabs (fGyroDiff) > GYRO_STD_DEVS * gyro.m_config.m_fStdDev)
-		if (gyro.m_config.m_bGyroFlipped)
-			return -1 * fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
+	if (fabs (gyroDiff) > GYRO_STD_DEVS * gyro.config.stdDev)
+		if (gyro.config.gyroFlipped)
+			return -1 * gyroVoltage / gyro.config.voltsPerDPS;
 		else
-			return fGyroVoltage / gyro.m_config.m_fVoltsPerDPS;
+			return gyroVoltage / gyro.config.voltsPerDPS;
 	return 0;
 }
+#endif
