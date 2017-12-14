@@ -453,8 +453,8 @@ setPosition (int motorPort, int position) {
 	} else {
 		profile->profileSetting = SETTING_1D_MOVE;
 		profile->finalPosition = position;
-		profile->tMax = profile->t1 + profile->t2 + profile->t4;
-		profile->jerk = sgn (distance) * profile->vMax/(profile->t1/1000.0)/(profile->t2/1000.0);
+		profile->tMax = profile->t1 + profile->t4;
+		profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0)/(profile->t2/1000.0);
 		profile->accelSet = 0;
 		profile->velocitySet = 0;
 		profile->positionSet = 0;
@@ -580,13 +580,13 @@ positionUpdate (motionProfiler *profile) {
 		if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
 			//J+
 			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-		} else if (profile->cycleCounter >= profile->t1 / profile->cycleTime && profile->cycleCounter < (profile->t1 + profile->t2) / profile->cycleTime) {
+		} else if (profile->cycleCounter >= (profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->t1 / profile->cycleTime) {
 			//J-
 			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
 		} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
 			//J-
 			profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-		} else if (profile->cycleCounter >= (profile->t4 + profile->t1) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
+		} else if (profile->cycleCounter >= (profile->t4 + profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
 			//J+
 			profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
 		}
