@@ -198,6 +198,7 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 #define NERD_MOTIONPLANNER
 
 #define SETTING_PWM 0x0
+#define SETTING_1D_SHORT_MOVE 0x1
 #define SETTING_VELOCITY 0x2
 #define SETTING_1D_MOVE 0x3
 #define SETTING_FOLLOW 0x4
@@ -232,7 +233,7 @@ struct motionProfiler {
 	int t1; //time for velocity ramping
 	int t2; //time for acceleration ramping
 	int t4; //estimated time assuming constant max velocity
-	int tMax; //total estimated time of profile
+	float tMax; //total estimated time of profile
 
 	float cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
@@ -434,21 +435,30 @@ setPosition (int motorPort, int position) {
 	profile->t4 = 1000 * fabs (distance) / profile->vMax;
 
 	if (profile->t4 < profile->t1 + profile->t2) {
-		//short movement profile, not implemented yet...
-		return;
+		profile->profileSetting = SETTING_1D_SHORT_MOVE;
+		profile->finalPosition = position;
+		profile->tMax = 2000.0 * profile->finalPosition / profile->vMax;
+		profile->jerk = 0;
+		profile->accelSet = 0;
+		profile->velocitySet = 0;
+		profile->positionSet = 0;
+
+		profile->motorOutput = 0;
+		profile->cycleCounter = 0;
+		profile->planComplete = 0;
+	} else {
+		profile->profileSetting = SETTING_1D_MOVE;
+		profile->finalPosition = position;
+		profile->tMax = profile->t1 + profile->t2 + profile->t4;
+		profile->jerk = sgn (distance) * profile->vMax/(profile->t1/1000.0)/(profile->t2/1000.0);
+		profile->accelSet = 0;
+		profile->velocitySet = 0;
+		profile->positionSet = 0;
+
+		profile->motorOutput = 0;
+		profile->cycleCounter = 0;
+		profile->planComplete = 0;
 	}
-
-	profile->profileSetting = SETTING_1D_MOVE;
-	profile->finalPosition = position;
-	profile->tMax = profile->t1 + profile->t2 + profile->t4;
-	profile->jerk = sgn (distance) * profile->vMax/(profile->t1/1000.0)/(profile->t2/1000.0);
-	profile->accelSet = 0;
-	profile->velocitySet = 0;
-	profile->positionSet = 0;
-
-	profile->motorOutput = 0;
-	profile->cycleCounter = 0;
-	profile->planComplete = 0;
 }
 
 /**
@@ -603,6 +613,48 @@ positionUpdate (motionProfiler *profile) {
 }
 
 /// @private
+void
+shortPositionUpdate (motionProfiler *profile) {
+	//get motion profile output
+	if (profile->planComplete == 0) {
+		if (profile->cycleCounter * profile->cycleTime < profile->tMax/2.0) {
+			profile->accelSet = profile->vMax*2.0/(profile->tMax/1000.0);
+		} else if (profile->cycleCounter * profile->cycleTime < profile->tMax) {
+			profile->accelSet = -1.0*profile->vMax*2.0/(profile->tMax/1000.0);
+		}
+
+		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
+			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
+			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
+		} else {
+			profile->velocitySet = 0;
+			profile->positionSet = profile->finalPosition;
+			profile->accelSet = 0;
+			profile->planComplete = 1;
+		}
+	}
+
+	profile->cycleCounter++;
+
+	//do position PID if cycle includes it
+	if (profile->cycleCounter % profile->positionCycles == 0) {
+	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
+	}
+
+	//do velocity PID
+	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
+	//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
+
+	//set motor PWM output
+	profile->motorOutput = velocityOut;
+
+	if (profile->motorOutput > 127)
+		profile->motorOutput = 127;
+	else if (profile->motorOutput < -127)
+		profile->motorOutput = -127;
+}
+
+/// @private
 task rawSensorMonitor () {
 	int i;
 
@@ -612,7 +664,7 @@ task rawSensorMonitor () {
 		}
 	}
 
-	abortTimeSlice ();
+	abortTimeslice ();
 }
 
 /// @private
@@ -636,6 +688,8 @@ task motionPlanner () {
 
 			if (profile->profileSetting == SETTING_1D_MOVE) {
 				positionUpdate (profile);
+			} else if (profile->profileSetting == SETTING_1D_SHORT_MOVE) {
+				shortPositionUpdate (profile);
 			} else if (profile->profileSetting == SETTING_VELOCITY) {
 				velocityUpdate (profile);
 			} else if (profile->profileSetting == SETTING_FOLLOW) {
@@ -646,7 +700,7 @@ task motionPlanner () {
 		updateMotors ();
 	}
 
-	abortTimeSlice ();
+	abortTimeslice ();
 }
 
 #endif
