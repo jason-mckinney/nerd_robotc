@@ -77,7 +77,7 @@ pidInit (PID pid, float Kp, float Ki, float Kd, float innerIntegralBand, float o
  * @param pid  instance of PID structure
  * @param toCopy  PID instance to copy settings from
  */
-void pidInit (PID pid, PID toCopy) {
+void pidInitCopy (PID pid, PID toCopy) {
 	pid.Kp = toCopy.Ki;
 	pid.Ki = toCopy.Ki;
 	pid.Kd = toCopy.Kd;
@@ -124,7 +124,7 @@ pidCalculate (PID pid, int setPoint, int processVariable) {
 
 /**
  * calculate PID output while velocity control is active. The velocity set point will be subtracted from the time derivative of the error
- * 
+ *
  * @param pid  the PID controller to use for the calculation
  * @param setPoint  the set point of the system
  * @param processVariable  the value of the feedback sensor in the system
@@ -159,7 +159,7 @@ pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int vel
 
 /**
  * calculate PID output for velocity control using feedforward instead of an error calculation, but still allowing for I and D components.
- * 
+ *
  * @param pid  the PID controller to use for the calculation
  * @param setPoint  the set point of the system
  * @param processVariable  the value of the feedback sensor in the system
@@ -197,12 +197,18 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 #ifndef NERD_MOTIONPLANNER
 #define NERD_MOTIONPLANNER
 
-typedef struct {
+#define SETTING_PWM 0x0
+#define SETTING_VELOCITY 0x2
+#define SETTING_1D_MOVE 0x3
+#define SETTING_FOLLOW 0x4
+
+struct motionProfiler {
 	PID positionController;
 	PID velocityController;
 
 	float Kv;
 	float Ka;
+	float Kf;
 	int *sensor;
 	int velocityFilter [5];
 	int velocityRead;
@@ -230,7 +236,8 @@ typedef struct {
 
 	float cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
-} motionProfiler;
+	motionProfiler *toFollow;
+};
 
 motionProfiler profilerPool[10]; //  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
 motionProfiler* motorController [10];
@@ -256,8 +263,8 @@ getRawSensor (int port) {
 }
 
 /**
- * create a motion profile for a motor/sensor pair. PID controllers for the motion profile will be set to default with 0 feedback control and a neutral feedforward gain of 127.0/vMax 
- * 
+ * create a motion profile for a motor/sensor pair. PID controllers for the motion profile will be set to default with 0 feedback control and a neutral feedforward gain of 127.0/vMax
+ *
  * @param motorPort  the motor port to create a profile for
  * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
  * @param vMax  the maximum velocity to use when calculating moves
@@ -293,14 +300,15 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, int
 	motorController [motorPort] = controller;
 	controller->sensor = sensor;
 	controller->velocityRead = 0;
-	controller->profileSetting = 0x00;
+	controller->profileSetting = SETTING_PWM;
 	controller->cycleCounter = 0;
 	controller->motorOutput = 0;
 	controller->lastSensorValue = *sensor;
 	controller->lastTime = nPgmTime;
 	controller->vMax = vMax;
 	controller->positionOut = 0;
-	controller->Ka = Ka;// 0.015;
+	controller->Ka = Ka;
+	controller->Kf = 0.0;
 
 	controller->velocityFilter[0] = 0;
 	controller->velocityFilter[1] = 0;
@@ -326,8 +334,8 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, int
  * @param vMax  the maximum velocity to use when calculating moves
  */
 void
-createMotionProfile (int motorPort, int *sensor, int vMax) {
-	createMotionProfiler (motorPort, sensor, vMax, 0.0, 600, 300, 25, 4);
+createDefaultMotionProfile (int motorPort, int *sensor, int vMax) {
+	createMotionProfile (motorPort, sensor, vMax, 0.0, 600, 300, 25, 4);
 }
 
 /**
@@ -382,6 +390,31 @@ setMotionSlave (int motorPort, int masterPort) {
 	motorController [motorPort] = motorController [masterPort];
 }
 
+/**
+ * set a motion profile's follow constant
+ *
+ * @param motorPort  the motor to update
+ * @param Kf  the follow constant value
+ */
+void
+setKf (int motorPort, float Kf) {
+	motorController [motorPort]->Kf = Kf;
+}
+
+/**
+ * set a motor to follow another motor's output while attempting to match the value of the sensor paired with the target motor.
+ *
+ * @param motorPort  the follower motor
+ * @param leaderPort  the motor to follow
+ */
+void
+followMotor (int motorPort, int leaderPort) {
+	if (motorController [leaderPort] == NULL || motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->toFollow = motorController [leaderPort];
+	motorController [motorPort]->profileSetting = SETTING_FOLLOW;
+}
 
 /**
  * issue a move command to the specified position. This will currently do nothing if the move is considered to be a "short move", ie. the motor is unable to fully ramp up to max velocity during the move. Note that this is an absolute position command, so two consecutive moves to 4000 are not equivalent to a single move to 8000.
@@ -405,7 +438,7 @@ setPosition (int motorPort, int position) {
 		return;
 	}
 
-	profile->profileSetting = 0b11;
+	profile->profileSetting = SETTING_1D_MOVE;
 	profile->finalPosition = position;
 	profile->tMax = profile->t1 + profile->t2 + profile->t4;
 	profile->jerk = sgn (distance) * profile->vMax/(profile->t1/1000.0)/(profile->t2/1000.0);
@@ -434,7 +467,7 @@ setPWMOutput (int motorPort, int output) {
 	if (output < -127)
 		output = -127;
 
-	motorController[motorPort]->profileSetting = 0b00;
+	motorController[motorPort]->profileSetting = SETTING_PWM;
 	motorController[motorPort]->motorOutput = output;
 }
 
@@ -450,7 +483,7 @@ setVelocity (int motorPort, int velocity) {
 		return;
 
 	motionProfiler *profile = motorController[motorPort];
-	profile->profileSetting = 0b10;
+	profile->profileSetting = SETTING_VELOCITY;
 	profile->velocitySet = velocity;
 }
 
@@ -504,6 +537,18 @@ velocityUpdate (motionProfiler *profile) {
 	if (profile->motorOutput > 127)
 		profile->motorOutput = 127;
 	else if (profile->motorOutput < -127)
+		profile->motorOutput = -127;
+}
+
+/// @private
+void
+followerUpdate (motionProfiler *profile) {
+	int error = *(profile->toFollow->sensor) - *(profile->sensor);
+	profile->motorOutput = profile->toFollow->motorOutput + error * profile->Kf;
+
+	if (profile->motorOutput > 127)
+		profile->motorOutput = 127;
+	if (profile->motorOutput < -127)
 		profile->motorOutput = -127;
 }
 
@@ -566,6 +611,8 @@ task rawSensorMonitor () {
 			rawSensorValue [i] = SensorValue [i];
 		}
 	}
+
+	abortTimeSlice ();
 }
 
 /// @private
@@ -585,17 +632,21 @@ task motionPlanner () {
 				continue;
 			}
 
-			measureVelocity (profile);			
+			measureVelocity (profile);
 
-			if (profile->profileSetting == 0b11) {
+			if (profile->profileSetting == SETTING_1D_MOVE) {
 				positionUpdate (profile);
-			} else if (profile->profileSetting == 0b10) {
+			} else if (profile->profileSetting == SETTING_VELOCITY) {
 				velocityUpdate (profile);
+			} else if (profile->profileSetting == SETTING_FOLLOW) {
+				followerUpdate (profile);
 			}
 		}
 
 		updateMotors ();
 	}
+
+	abortTimeSlice ();
 }
 
 #endif
