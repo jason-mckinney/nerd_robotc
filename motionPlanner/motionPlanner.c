@@ -225,7 +225,8 @@ struct motionProfiler {
 	short motorOutput;
 	float positionOut;
 	int lastSensorValue;
-	unsigned int lastTime;
+	long lastMeasureTime;
+	long lastComputeTime;
 	char cycleCounter;
 	long moveStartTime;
 	float aMax;
@@ -361,7 +362,8 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
 	controller->profileSetting = SETTING_INACTIVE;
 	controller->motorOutput = 0;
 	controller->lastSensorValue = *sensor;
-	controller->lastTime = nPgmTime;
+	controller->lastMeasureTime = nPgmTime;
+	controller->lastComputeTime = nPgmTime;
 	controller->vMax = vMax;
 	controller->positionOut = 0;
 	controller->Ka = Ka;
@@ -513,6 +515,8 @@ setVelocity (int motorPort, float velocity) {
 
 	motionProfiler *profile = motorController[motorPort];
 	profile->profileSetting = SETTING_ACTIVE;
+	profile->positionSet = *(profile->sensor);
+	profile->positionTarget = *(profile->sensor);
 
 	clearMoveQueue (profile);
 	queueMove (profile, nPgmTime, velocity);
@@ -539,7 +543,7 @@ updateMotors () {
 /// @private
 void
 measureVelocity (motionProfiler *profile) {
-	float deltaT = (nPgmTime - profile->lastTime)/1000.0;
+	float deltaT = (nPgmTime - profile->lastMeasureTime)/1000.0;
 	int sensorV = *(profile->sensor);
 
 	//get sensor velocity, ticks per second
@@ -594,12 +598,14 @@ profileUpdate (motionProfiler *profile) {
 		profile->moveStartTime = nPgmTime;
 
 	float moveTime = nPgmTime - profile->moveStartTime;
-	float deltaTime = nPgmTime - profile->lastTime;
-	if (profile->lastTime < profile->moveStartTime) {
-		deltaTime -= profile->moveStartTime - profile->lastTime;
+	float deltaTime = nPgmTime - profile->lastComputeTime;
+
+	if (profile->lastComputeTime < profile->moveStartTime) {
+		deltaTime -= profile->moveStartTime - profile->lastMeasureTime;
 		if (deltaTime < 0)
 			deltaTime = 0;
 	}
+	profile->lastComputeTime = nPgmTime;
 
 	if (nPgmTime < profile->moveStartTime + profile->t1) { // t0
 		profile->accelSet = profile->jerk * moveTime / 1000.0;
@@ -660,11 +666,12 @@ task motionPlanner () {
 
 			motionProfiler *profile = uniqueControllers [i];
 
-			if (nPgmTime - profile->lastTime < profile->cycleTime) {
+			if (nPgmTime - profile->lastMeasureTime < profile->cycleTime) {
 				continue;
 			}
 
 			measureVelocity (profile);
+			profile->lastMeasureTime = nPgmTime;
 
 			if (profile->profileSetting == SETTING_ACTIVE || profile->profileSetting == SETTING_ACTIVEPOSITION) {
 				for (int j = 0; j < MOVE_BUFFER_SIZE; ++j) {
@@ -681,8 +688,6 @@ task motionPlanner () {
 
 				profileUpdate (profile);
  			}
-
- 			profile->lastTime = nPgmTime;
 		}
 
 		updateMotors ();
