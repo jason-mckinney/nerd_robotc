@@ -197,11 +197,18 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 #ifndef NERD_MOTIONPLANNER
 #define NERD_MOTIONPLANNER
 
-#define SETTING_PWM 0x0
-#define SETTING_1D_SHORT_MOVE 0x1
-#define SETTING_VELOCITY 0x2
-#define SETTING_1D_MOVE 0x3
-#define SETTING_FOLLOW 0x4
+#define MOVE_BUFFER_SIZE 10
+
+#define SETTING_INACTIVE 0x0
+#define SETTING_ACTIVE 0x1
+#define SETTING_ACTIVEPOSITION 0x2
+
+struct Move {
+	long startTime;
+	long timeLimit;
+	float targetVelocity;
+	char moveNotExecuted;
+}
 
 struct motionProfiler {
 	PID positionController;
@@ -209,35 +216,43 @@ struct motionProfiler {
 
 	float Kv;
 	float Ka;
-	float Kf;
+	float jerkLimit;
 	int *sensor;
 	int velocityFilter [5];
 	int velocityRead;
 
 	char profileSetting;
-	int cycleCounter;
 	short motorOutput;
 	float positionOut;
 	int lastSensorValue;
 	unsigned int lastTime;
+	char cycleCounter;
+	long moveStartTime;
+	float aMax;
+	float positionTarget;
 
-	int finalPosition; //target position, in sensor units
+	float velocityTarget;
+
 	float positionSet; //position set point
 	float velocitySet; //velocity set point
 	float accelSet; //acceleration output
 	float jerk; //rate of acceleration change
 
-	char planComplete;
-
 	int vMax; //max rate of system, in sensor units/second
-	int t1; //time for velocity ramping
-	int t2; //time for acceleration ramping
-	int t4; //estimated time assuming constant max velocity
-	float tMax; //total estimated time of profile
+	int accelTime; //time for velocity ramping
+
+	// + jerk
+	long t1; //time to set jerk to 0
+	// 0 jerk
+	long t2; //time to set jerk to decelerate (accelSet -= jerk)
+	// - jerk
+	long t3; //time to set jerk to 0
+	// 0 jerk
+
+	Move moveBuffer [MOVE_BUFFER_SIZE]; //random access buffer for queueing move commands
 
 	float cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
-	motionProfiler *toFollow;
 };
 
 motionProfiler profilerPool[10]; //  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
@@ -248,6 +263,45 @@ motionProfiler* uniqueControllers [10];
 int rawSensorValue [20];
 /// \endcond
 
+void
+queueMove (motionProfiler *profile, long startTime, float targetVelocity) {
+	int i;
+
+	for (i = 0; i < MOVE_BUFFER_SIZE; ++i) {
+		if (profile->moveBuffer [i].moveNotExecuted == 0) {
+			profile->moveBuffer [i].startTime = startTime;
+			profile->moveBuffer [i].targetVelocity = targetVelocity;
+			profile->moveBuffer [i].moveNotExecuted = 1;
+			profile->moveBuffer [i].timeLimit = profile->accelTime;
+			return;
+		}
+	}
+}
+
+void
+queueMoveWithTimeLimit (motionProfiler *profile, long startTime, float targetVelocity, long timeLimit) {
+	int i;
+
+	for (i = 0; i < MOVE_BUFFER_SIZE; ++i) {
+		if (profile->moveBuffer [i].moveNotExecuted == 0) {
+			profile->moveBuffer [i].startTime = startTime;
+			profile->moveBuffer [i].targetVelocity = targetVelocity;
+			profile->moveBuffer [i].moveNotExecuted = 1;
+			profile->moveBuffer [i].timeLimit = timeLimit;
+			return;
+		}
+	}
+}
+
+void
+clearMoveQueue (motionProfiler *profile) {
+	int i;
+
+	for (i = 0; i < MOVE_BUFFER_SIZE; ++i) {
+		if (profile->moveBuffer [i].moveNotExecuted)
+			profile->moveBuffer [i].moveNotExecuted = 0;
+	}
+}
 
 /**
  * return a pointer to a ROBOTC sensor
@@ -288,12 +342,6 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
 	if (jerkLimit < 0)
 		jerkLimit = 0;
 
-	int t2 = t1/2.0 * jerkLimit;
-	t2 -= t2 % cycleTime;
-
-	if (t1 % cycleTime != 0 || t2 % cycleTime != 0)
-		return;
-
 	int i;
 	motionProfiler *controller;
 
@@ -307,17 +355,16 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
 	}
 
 	motorController [motorPort] = controller;
+	controller->jerkLimit = jerkLimit;
 	controller->sensor = sensor;
 	controller->velocityRead = 0;
-	controller->profileSetting = SETTING_PWM;
-	controller->cycleCounter = 0;
+	controller->profileSetting = SETTING_INACTIVE;
 	controller->motorOutput = 0;
 	controller->lastSensorValue = *sensor;
 	controller->lastTime = nPgmTime;
 	controller->vMax = vMax;
 	controller->positionOut = 0;
 	controller->Ka = Ka;
-	controller->Kf = 0.0;
 
 	controller->velocityFilter[0] = 0;
 	controller->velocityFilter[1] = 0;
@@ -325,8 +372,10 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
 	controller->velocityFilter[3] = 0;
 	controller->velocityFilter[4] = 0;
 
-	controller->t1 = t1;
-	controller->t2 = t2;
+	controller->accelTime = t1;
+	controller->t1 = 0;
+	controller->t2 = 0;
+	controller->t3 = 0;
 
 	controller->cycleTime = cycleTime;
 	controller->positionCycles = positionCycles;
@@ -400,32 +449,6 @@ setMotionSlave (int motorPort, int masterPort) {
 }
 
 /**
- * set a motion profile's follow constant
- *
- * @param motorPort  the motor to update
- * @param Kf  the follow constant value
- */
-void
-setKf (int motorPort, float Kf) {
-	motorController [motorPort]->Kf = Kf;
-}
-
-/**
- * set a motor to follow another motor's output while attempting to match the value of the sensor paired with the target motor.
- *
- * @param motorPort  the follower motor
- * @param leaderPort  the motor to follow
- */
-void
-followMotor (int motorPort, int leaderPort) {
-	if (motorController [leaderPort] == NULL || motorController [motorPort] == NULL)
-		return;
-
-	motorController [motorPort]->toFollow = motorController [leaderPort];
-	motorController [motorPort]->profileSetting = SETTING_FOLLOW;
-}
-
-/**
  * issue a move command to the specified position. This will currently do nothing if the move is considered to be a "short move", ie. the motor is unable to fully ramp up to max velocity during the move. Note that this is an absolute position command, so two consecutive moves to 4000 are not equivalent to a single move to 8000.
  *
  * @param motorPort  the motor to issue the move command to
@@ -439,47 +462,18 @@ setPosition (int motorPort, int position) {
 	motionProfiler *profile = motorController [motorPort];
 
 	int distance = position - *(profile->sensor);
+	float initialVelocity = profile->velocityRead;
+	float velocityError = sgn (distance) * profile->vMax - initialVelocity;
+	float rampUpTime = fabs((profile->vMax - initialVelocity)/profile->vMax * profile->accelTime);
+	float rampUpDist = 0.0005 * (rampUpTime-profile->accelTime) * initialVelocity + profile->accelTime / 2000.0 * profile->vMax * sgn (velocityError);
+	float rampDownDist = profile->accelTime * profile->vMax / 2000.0 * sgn (velocityError);
+	float cruiseTime = sgn (distance) * (distance - rampUpDist - rampDownDist) / profile->vMax * 1000.0;
+	long decelTime = cruiseTime + rampUpTime + nPgmTime;
 
-	profile->t4 = 1000 * fabs (distance) / profile->vMax;
-
-	if (profile->t4 < profile->t1 + profile->t2) {
-		profile->profileSetting = SETTING_1D_SHORT_MOVE;
-		profile->finalPosition = position;
-		profile->tMax = 2000.0 * fabs(profile->finalPosition) / profile->vMax;
-		profile->jerk = sgn (distance);
-		profile->accelSet = 0;
-		profile->velocitySet = 0;
-		profile->positionSet = 0;
-
-		profile->motorOutput = 0;
-		profile->cycleCounter = 0;
-		profile->planComplete = 0;
-		profile->positionController.lastTime = nPgmTime;
-		profile->velocityController.lastTime = nPgmTime;
-		profile->positionController.lastValue = *(profile->sensor);
-		profile->velocityController.lastValue = profile->velocityRead;
-	} else {
-		profile->profileSetting = SETTING_1D_MOVE;
-		profile->finalPosition = position;
-		profile->tMax = profile->t1 + profile->t4;
-	
-		if (profile->t2 != 0) 
-			profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0)/(profile->t2/1000.0);
-		else
-			profile->jerk = sgn (distance) * profile->vMax/((profile->t1 - profile->t2)/1000.0);
-
-		profile->accelSet = 0;
-		profile->velocitySet = 0;
-		profile->positionSet = 0;
-
-		profile->motorOutput = 0;
-		profile->cycleCounter = 0;
-		profile->planComplete = 0;
-		profile->positionController.lastTime = nPgmTime;
-		profile->velocityController.lastTime = nPgmTime;
-		profile->positionController.lastValue = *(profile->sensor);
-		profile->velocityController.lastValue = profile->velocityRead;
-	}
+	queueMoveWithTimeLimit (profile, nPgmTime, sgn(distance) * profile->vMax, decelTime - nPgmTime);
+	queueMoveWithTimeLimit (profile, decelTime, 0, decelTime - nPgmTime);
+	profile->profileSetting = SETTING_ACTIVEPOSITION;
+	profile->positionTarget = position;
 }
 
 /**
@@ -498,8 +492,12 @@ setPWMOutput (int motorPort, int output) {
 	if (output < -127)
 		output = -127;
 
-	motorController[motorPort]->profileSetting = SETTING_PWM;
+	clearMoveQueue (motorController[motorPort]);
+	motorController[motorPort]->profileSetting = SETTING_INACTIVE;
 	motorController[motorPort]->motorOutput = output;
+	motorController[motorPort]->velocitySet = 0;
+	motorController[motorPort]->positionTarget = 0;
+	motorController[motorPort]->positionSet = 0;
 }
 
 /**
@@ -509,15 +507,15 @@ setPWMOutput (int motorPort, int output) {
  * @param velocity  desired velocity
  */
 void
-setVelocity (int motorPort, int velocity) {
+setVelocity (int motorPort, float velocity) {
 	if (motorController [motorPort] == NULL)
 		return;
 
 	motionProfiler *profile = motorController[motorPort];
-	profile->profileSetting = SETTING_VELOCITY;
-	profile->velocitySet = velocity;
-	profile->velocityController.lastTime = nPgmTime;
-	profile->velocityController.lastValue = profile->velocityRead;
+	profile->profileSetting = SETTING_ACTIVE;
+
+	clearMoveQueue (profile);
+	queueMove (profile, nPgmTime, velocity);
 }
 
 /// @private
@@ -542,7 +540,6 @@ updateMotors () {
 void
 measureVelocity (motionProfiler *profile) {
 	float deltaT = (nPgmTime - profile->lastTime)/1000.0;
-	profile->lastTime = nPgmTime;
 	int sensorV = *(profile->sensor);
 
 	//get sensor velocity, ticks per second
@@ -558,129 +555,75 @@ measureVelocity (motionProfiler *profile) {
 	profile->lastSensorValue = sensorV;
 }
 
-/// @private
 void
-velocityUpdate (motionProfiler *profile) {
-	//do velocity PID
-	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->velocitySet, profile->velocityRead);
+startMove (motionProfiler *profile, float targetVelocity, long timeLimit) {
+	profile->velocityTarget = targetVelocity;
+	float velocityError = targetVelocity - profile->velocityRead;
+	long rampUpTime = fabs(velocityError / profile->vMax * profile->accelTime);
 
-	//set motor PWM output
-	profile->motorOutput = velocityOut;
+	if (rampUpTime > timeLimit)
+		rampUpTime = timeLimit;
 
-	if (profile->motorOutput > 127)
-		profile->motorOutput = 127;
-	else if (profile->motorOutput < -127)
-		profile->motorOutput = -127;
-}
+	long jerkTime = rampUpTime / 2.0 * profile->jerkLimit;
 
-/// @private
-void
-followerUpdate (motionProfiler *profile) {
-	int error = *(profile->toFollow->sensor) - *(profile->sensor);
-	profile->motorOutput = profile->toFollow->motorOutput + error * profile->Kf;
-
-	if (profile->motorOutput > 127)
-		profile->motorOutput = 127;
-	if (profile->motorOutput < -127)
-		profile->motorOutput = -127;
-}
-
-/// @private
-void
-positionUpdate (motionProfiler *profile) {
-	//get motion profile output
-	if (profile->planComplete == 0) {
-		if (profile->t2 != 0) {
-			if (profile->cycleCounter < profile->t2 / profile->cycleTime) {
-				//J+
-				profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-			} else if (profile->cycleCounter >= (profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->t1 / profile->cycleTime) {
-				//J-
-				profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-			} else if (profile->cycleCounter >= profile->t4 / profile->cycleTime && profile->cycleCounter < (profile->t4 + profile->t2) / profile->cycleTime) {
-				//J-
-				profile->accelSet -= profile->jerk * (profile->cycleTime/1000.0);
-			} else if (profile->cycleCounter >= (profile->t4 + profile->t1 - profile->t2) / profile->cycleTime && profile->cycleCounter < profile->tMax) {
-				//J+
-				profile->accelSet += profile->jerk * (profile->cycleTime/1000.0);
-			}
-		} else {
-			if (profile->cycleCounter < profile->t1 / profile->cycleTime) {
-				profile->accelSet = profile->jerk;
-			} else if (profile->cycleCounter > profile->t4 / profile->cycleTime && profile->cycleCounter < profile->tMax / profile->cycleTime) {
-				profile->accelSet = -1 * profile->jerk;
-			} else {
-				profile->accelSet = 0;
-			}
-		}
-		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
-			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
-
-			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
-			if (fabs(profile->positionSet) > fabs(profile->finalPosition))
-				profile->positionSet = profile->finalPosition;
-		} else {
-			profile->velocitySet = 0;
-			profile->positionSet = profile->finalPosition;
-			profile->accelSet = 0;
-			profile->planComplete = 1;
-		}
+	if (rampUpTime < jerkTime) {
+		jerkTime = 0;
 	}
 
-	profile->cycleCounter++;
+	if (rampUpTime != 0)
+		profile->aMax = velocityError / (rampUpTime - jerkTime) * 1000.0;
+	else
+		profile->aMax = 0;
+
+	if (jerkTime > 0)
+		profile->jerk = profile->aMax / jerkTime * 1000.0;
+	else
+		profile->jerk = 0;
+
+	profile->t1 = jerkTime;
+	profile->t2 = rampUpTime - jerkTime;
+	profile->t3 = rampUpTime;
+
+	profile->moveStartTime = -1;
+}
+
+/// @private
+void
+profileUpdate (motionProfiler *profile) {
+	if (profile->moveStartTime == -1)
+		profile->moveStartTime = nPgmTime;
+
+	float moveTime = nPgmTime - profile->moveStartTime;
+	float deltaTime = nPgmTime - profile->lastTime;
+	if (profile->lastTime < profile->moveStartTime) {
+		deltaTime -= profile->moveStartTime - profile->lastTime;
+		if (deltaTime < 0)
+			deltaTime = 0;
+	}
+
+	if (nPgmTime < profile->moveStartTime + profile->t1) { // t0
+		profile->accelSet = profile->jerk * moveTime / 1000.0;
+	} else if (nPgmTime > profile->moveStartTime + profile->t1 && nPgmTime < profile->moveStartTime + profile->t2) { // t1
+		profile->accelSet = profile->aMax;
+	} else if (nPgmTime > profile->moveStartTime + profile->t2 && nPgmTime < profile->moveStartTime + profile->t3) { // t2
+		profile->accelSet = profile->aMax - profile->jerk * (moveTime - profile->t2) / 1000.0;
+	} else if (nPgmTime > profile->moveStartTime + profile->t3) { // t3
+		profile->accelSet = 0;
+		profile->velocitySet = profile->velocityTarget;
+	}
+
+	profile->velocitySet += profile->accelSet * deltaTime/1000.0;
+	profile->positionSet += profile->velocitySet * deltaTime/1000.0;
 
 	//do position PID if cycle includes it
 	if (profile->cycleCounter % profile->positionCycles == 0) {
 	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
 	}
+	profile->cycleCounter++;
 
 	//do velocity PID
 	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
 	//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
-
-	//set motor PWM output
-	profile->motorOutput = velocityOut;
-
-	if (profile->motorOutput > 127)
-		profile->motorOutput = 127;
-	else if (profile->motorOutput < -127)
-		profile->motorOutput = -127;
-}
-
-/// @private
-void
-shortPositionUpdate (motionProfiler *profile) {
-	//get motion profile output
-	if (profile->planComplete == 0) {
-		if (profile->cycleCounter * profile->cycleTime < profile->tMax/2.0) {
-			profile->accelSet = sgn (profile->jerk) * (profile->vMax*2.0/(profile->tMax/1000.0));
-		} else if (profile->cycleCounter * profile->cycleTime < profile->tMax) {
-			profile->accelSet = sgn (profile->jerk) * (-1.0*profile->vMax*2.0/(profile->tMax/1000.0));
-		}
-
-		if (profile->cycleCounter < profile->tMax / profile->cycleTime) {
-			profile->velocitySet += profile->accelSet * (profile->cycleTime/1000.0);
-			profile->positionSet += profile->velocitySet * (profile->cycleTime/1000.0);
-
-			if ((profile->jerk < 0 && profile->positionSet < profile->finalPosition) || (profile->jerk > 0 && profile->positionSet > profile->finalPosition))
-				profile->positionSet = profile->finalPosition;
-		} else {
-			profile->velocitySet = 0;
-			profile->positionSet = profile->finalPosition;
-			profile->accelSet = 0;
-			profile->planComplete = 1;
-		}
-	}
-
-	profile->cycleCounter++;
-
-	//do position PID if cycle includes it
-	if (profile->cycleCounter % profile->positionCycles == 0) {
-	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
-	}
-
-	//do velocity PID
-	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
 
 	//set motor PWM output
 	profile->motorOutput = velocityOut;
@@ -723,15 +666,23 @@ task motionPlanner () {
 
 			measureVelocity (profile);
 
-			if (profile->profileSetting == SETTING_1D_MOVE) {
-				positionUpdate (profile);
-			} else if (profile->profileSetting == SETTING_1D_SHORT_MOVE) {
-				shortPositionUpdate (profile);
-			} else if (profile->profileSetting == SETTING_VELOCITY) {
-				velocityUpdate (profile);
-			} else if (profile->profileSetting == SETTING_FOLLOW) {
-				followerUpdate (profile);
-			}
+			if (profile->profileSetting == SETTING_ACTIVE || profile->profileSetting == SETTING_ACTIVEPOSITION) {
+				for (int j = 0; j < MOVE_BUFFER_SIZE; ++j) {
+					if (profile->moveBuffer[j].moveNotExecuted && profile->moveBuffer[j].startTime < nPgmTime) {
+						startMove (profile, profile->moveBuffer[j].targetVelocity, profile->moveBuffer[j].timeLimit);
+						profile->moveBuffer[j].moveNotExecuted = 0;
+
+						break;
+					}
+				}
+
+				if (profile->profileSetting == SETTING_ACTIVEPOSITION && profile->t3 < nPgmTime && profile->velocitySet == 0)
+					profile->positionSet = profile->positionTarget;
+
+				profileUpdate (profile);
+ 			}
+
+ 			profile->lastTime = nPgmTime;
 		}
 
 		updateMotors ();
