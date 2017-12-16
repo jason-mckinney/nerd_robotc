@@ -24,8 +24,8 @@ const unsigned int TrueSpeed[128] =
 };
 #endif
 
-#ifndef NERD_PID_h
-#define NERD_PID_h
+#ifndef NERD_PID
+#define NERD_PID
 
 /**
  * PID controller data structure
@@ -43,12 +43,6 @@ typedef struct {
 	float lastSetPoint;
 } PID;
 
-#endif
-
-#ifndef PID_C
-#define PID_C
-
-/// \endcond
 /**
  * initialize pid structure, set parameters
  *
