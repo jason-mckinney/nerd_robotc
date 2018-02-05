@@ -1,5 +1,6 @@
 #ifndef NERD_PID
 #define NERD_PID
+
 /**
  * PID controller data structure
  */
@@ -15,7 +16,6 @@ typedef struct {
 	unsigned long lastTime;
 	float lastSetPoint;
 } PID;
-
 
 /**
  * initialize pid structure, set parameters
