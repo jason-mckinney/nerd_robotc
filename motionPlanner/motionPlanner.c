@@ -552,7 +552,7 @@ measureVelocity (motionProfiler *profile) {
 	int sensorV = convert_to_float (profile->sensor);
 
 	//get sensor velocity, ticks per second
-	float sensorRate = (sensorV - profile->lastSensorValue) / deltaT;
+	float sensorRate = deltaT == 0 ? 0 : (sensorV - profile->lastSensorValue) / deltaT;
 
 	for (int j = 4; j > 0; --j) {
 		profile->velocityFilter [j] = profile->velocityFilter [j-1];
