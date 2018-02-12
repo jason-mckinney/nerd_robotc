@@ -211,14 +211,14 @@ struct motionProfiler {
 	float Kv;
 	float Ka;
 	float jerkLimit;
-	int *sensor;
+	void *sensor;
 	int velocityFilter [5];
 	int velocityRead;
 
 	char profileSetting;
 	short motorOutput;
 	float positionOut;
-	int lastSensorValue;
+	float lastSensorValue;
 	long lastMeasureTime;
 	long lastComputeTime;
 	char cycleCounter;
@@ -233,7 +233,7 @@ struct motionProfiler {
 	float accelSet; //acceleration output
 	float jerk; //rate of acceleration change
 
-	int vMax; //max rate of system, in sensor units/second
+	float vMax; //max rate of system, in sensor units/second
 	int accelTime; //time for velocity ramping
 
 	// + jerk
@@ -257,6 +257,17 @@ motionProfiler* uniqueControllers [10];
 //sensor variable
 int rawSensorValue [20];
 /// \endcond
+
+float
+convert_to_float (void *var) {
+	int *i = var;
+	float *f = var;
+
+	if (*i == *var)
+		return *var;
+
+	return *f;
+}
 
 void
 queueMove (motionProfiler *profile, long startTime, float targetVelocity) {
@@ -306,7 +317,7 @@ clearMoveQueue (motionProfiler *profile) {
  * @return  the pointer to the sensor value
  */
 int*
-getRawSensor (int port) {
+getSensorPointer (int port) {
 	if (port < 0 || port > 19)
 		return NULL;
 	return &rawSensorValue [port];
@@ -316,7 +327,7 @@ getRawSensor (int port) {
  * create a motion profile for a motor/sensor pair. PID controllers for the motion profile will be set to default with 0 feedback control and a neutral feedforward gain of 127.0/vMax
  *
  * @param motorPort  the motor port to create a profile for
- * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
+ * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getSensorPointer().
  * @param vMax  the maximum velocity to use when calculating moves
  * @param Ka  acceleration constant used when ramping up/down velocity during moves
  * @param t1  time to spend at peak acceleration at the beginning/end of a move. This and jerkLimit will determine the shape of the motion curve
@@ -325,7 +336,7 @@ getRawSensor (int port) {
  * @param positionCycles  cycles to skip for position updates during moves. This will generally be 3-5
  */
 void
-createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
+createMotionProfile (int motorPort, void *sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
@@ -355,7 +366,7 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
 	controller->velocityRead = 0;
 	controller->profileSetting = SETTING_INACTIVE;
 	controller->motorOutput = 0;
-	controller->lastSensorValue = *sensor;
+	controller->lastSensorValue = convert_to_float(sensor);
 	controller->lastMeasureTime = nPgmTime;
 	controller->lastComputeTime = nPgmTime;
 	controller->vMax = vMax;
@@ -384,11 +395,11 @@ createMotionProfile (int motorPort, int *sensor, int vMax, float Ka, int t1, flo
  * create a motion profile for a motor/sensor pair using default timing settings and a Ka of 0. This will provide simple feedforward position/velocity control
  *
  * @param motorPort  the motor port to create a profile for
- * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getRawSensor().
+ * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getSensorPointer().
  * @param vMax  the maximum velocity to use when calculating moves
  */
 void
-createDefaultMotionProfile (int motorPort, int *sensor, int vMax) {
+createDefaultMotionProfile (int motorPort, void *sensor, float vMax) {
 	createMotionProfile (motorPort, sensor, vMax, 0.0, 600, 0.5, 25, 4);
 }
 
@@ -457,7 +468,7 @@ setPosition (int motorPort, int position) {
 
 	motionProfiler *profile = motorController [motorPort];
 
-	int distance = position - *(profile->sensor);
+	float distance = position - convert_to_float(profile->sensor);
 	float initialVelocity = profile->velocityRead;
 	float velocityError = sgn (distance) * profile->vMax - initialVelocity;
 	float rampUpTime = fabs((profile->vMax - initialVelocity)/profile->vMax * profile->accelTime);
@@ -509,8 +520,8 @@ setVelocity (int motorPort, float velocity) {
 
 	motionProfiler *profile = motorController[motorPort];
 	profile->profileSetting = SETTING_ACTIVE;
-	profile->positionSet = *(profile->sensor);
-	profile->positionTarget = *(profile->sensor);
+	profile->positionSet = convert_to_float (profile->sensor);
+	profile->positionTarget = convert_to_float (profile->sensor);
 
 	clearMoveQueue (profile);
 	queueMove (profile, nPgmTime, velocity);
@@ -538,7 +549,7 @@ updateMotors () {
 void
 measureVelocity (motionProfiler *profile) {
 	float deltaT = (nPgmTime - profile->lastMeasureTime)/1000.0;
-	int sensorV = *(profile->sensor);
+	int sensorV = convert_to_float (profile->sensor);
 
 	//get sensor velocity, ticks per second
 	float sensorRate = (sensorV - profile->lastSensorValue) / deltaT;
@@ -617,7 +628,7 @@ profileUpdate (motionProfiler *profile) {
 
 	//do position PID if cycle includes it
 	if (profile->cycleCounter % profile->positionCycles == 0) {
-	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, *(profile->sensor), profile->velocitySet);
+	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, convert_to_float (profile->sensor), profile->velocitySet);
 	}
 	profile->cycleCounter++;
 
