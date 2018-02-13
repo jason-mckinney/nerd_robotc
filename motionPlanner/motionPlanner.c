@@ -299,6 +299,17 @@ queueMoveWithTimeLimit (motionProfiler *profile, long startTime, float targetVel
 	}
 }
 
+char
+hasMoveQueued (motionProfiler *profile) {
+	int i;
+
+	for (i = 0; i < MOVE_BUFFER_SIZE; ++i)
+		if (profile->moveBuffer[i].moveNotExecuted == 1)
+			return 1;
+
+	return 0;
+}
+
 void
 clearMoveQueue (motionProfiler *profile) {
 	int i;
@@ -471,12 +482,15 @@ setPosition (int motorPort, int position) {
 	float distance = position - convert_to_float(profile->sensor);
 	float initialVelocity = profile->velocityRead;
 	float velocityError = sgn (distance) * profile->vMax - initialVelocity;
-	float rampUpTime = fabs((profile->vMax - initialVelocity)/profile->vMax * profile->accelTime);
+	float rampUpTime = fabs((sgn(distance) * profile->vMax - initialVelocity)/profile->vMax * profile->accelTime);
 	float rampUpDist = 0.0005 * (rampUpTime-profile->accelTime) * initialVelocity + profile->accelTime / 2000.0 * profile->vMax * sgn (velocityError);
 	float rampDownDist = profile->accelTime * profile->vMax / 2000.0 * sgn (velocityError);
 	float cruiseTime = sgn (distance) * (distance - rampUpDist - rampDownDist) / profile->vMax * 1000.0;
 	long decelTime = cruiseTime + rampUpTime + nPgmTime;
 
+	writeDebugStreamLine ("%0.3f\n", rampUpDist);
+
+	clearMoveQueue(profile);
 	queueMoveWithTimeLimit (profile, nPgmTime, sgn(distance) * profile->vMax, decelTime - nPgmTime);
 	queueMoveWithTimeLimit (profile, decelTime, 0, decelTime - nPgmTime);
 	profile->profileSetting = SETTING_ACTIVEPOSITION;
@@ -688,7 +702,7 @@ task motionPlanner () {
 					}
 				}
 
-				if (profile->profileSetting == SETTING_ACTIVEPOSITION && profile->t3 < nPgmTime && profile->velocitySet == 0)
+				if (profile->profileSetting == SETTING_ACTIVEPOSITION && profile->t3 < nPgmTime && profile->velocitySet == 0 && !hasMoveQueued(profile))
 					profile->positionSet = profile->positionTarget;
 
 				profileUpdate (profile);
