@@ -196,6 +196,7 @@ pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
 #define SETTING_INACTIVE 0x0
 #define SETTING_ACTIVE 0x1
 #define SETTING_ACTIVEPOSITION 0x2
+#define SETTING_MIRROR_REVERSE 0x3
 
 struct Move {
 	long startTime;
@@ -235,6 +236,7 @@ struct motionProfiler {
 
 	float vMax; //max rate of system, in sensor units/second
 	int accelTime; //time for velocity ramping
+	int following; //motor port to mirror
 
 	// + jerk
 	long t1; //time to set jerk to 0
@@ -249,6 +251,9 @@ struct motionProfiler {
 	float cycleTime;
 	int positionCycles; //amount of cycles to wait before new position update
 };
+
+void setPositionController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand);
+void setVelocityController (int motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand);
 
 motionProfiler profilerPool[10]; //  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
 motionProfiler* motorController [10];
@@ -347,7 +352,7 @@ getSensorPointer (int port) {
  * @param positionCycles  cycles to skip for position updates during moves. This will generally be 3-5
  */
 void
-createMotionProfile (int motorPort, void *sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
+setMotionProfileCustom (int motorPort, void *sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
 	if (motorPort < 0 || motorPort > 9)
 		return;
 
@@ -402,16 +407,119 @@ createMotionProfile (int motorPort, void *sensor, float vMax, float Ka, int t1, 
 	pidInit (controller->velocityController, 127.0/vMax, 0, 0, 50, 500);
 }
 
-/**
- * create a motion profile for a motor/sensor pair using default timing settings and a Ka of 0. This will provide simple feedforward position/velocity control
- *
- * @param motorPort  the motor port to create a profile for
- * @param sensor  a pointer to the sensor value to monitor. This can be a pointer to any integer, or a "raw" sensor value using getSensorPointer().
- * @param vMax  the maximum velocity to use when calculating moves
- */
 void
-createDefaultMotionProfile (int motorPort, void *sensor, float vMax) {
-	createMotionProfile (motorPort, sensor, vMax, 0.0, 600, 0.5, 25, 4);
+setMotionProfile (int motorPort, tSensors sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
+	if (sensor < in1 || sensor > dgtl12)
+		return;
+
+	int *sensor_pointer = getSensorPointer(sensor);
+	setMotionProfileCustom(motorPort, sensor_pointer, vMax, Ka, t1, jerkLimit, cycleTime, positionCycles);
+}
+
+void
+setSimpleMotionProfile (int motorPort, tSensors sensor, float vMax) {
+	if (sensor < in1 || sensor > dgtl12)
+		return;
+
+	int *sensor_pointer = getSensorPointer(sensor);
+	setMotionProfileCustom (motorPort, sensor_pointer, vMax, 0.015, 600, 0.5, 20, 4);
+	setVelocityController (motorPort, 127.0/vMax, 0.0, 0.0, 50, 400);
+	setPositionController (motorPort, 5.0, 0.0, 0.0, 30, 150);
+}
+
+void
+setSimpleMotionProfileCustom (int motorPort, void *sensor, float vMax) {
+	setMotionProfileCustom (motorPort, sensor, vMax, 0.015, 600, 0.5, 20, 4);
+
+	setVelocityController (motorPort, 127.0/vMax, 0.0, 0.0, 50, 400);
+	setPositionController (motorPort, 5.0, 0.0, 0.0, 30, 150);
+}
+
+void
+updateMotionProfileCustom (int motorPort, void *sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
+	if (motorPort < 0 || motorPort > 9)
+		return;
+	if (motorController[motorPort] == NULL)
+		return;
+
+	motionProfiler *controller = motorController[motorPort];
+
+	if (jerkLimit > 1.0)
+		jerkLimit = 1.0;
+	if (jerkLimit < 0)
+		jerkLimit = 0;
+
+	controller->sensor = sensor;
+	controller->vMax = vMax;
+	controller->Ka = Ka;
+	controller->accelTime = t1;
+	controller->cycleTime = cycleTime;
+	controller->jerkLimit = jerkLimit;
+	controller->positionCycles = positionCycles;
+}
+
+void
+updateMotionProfile (int motorPort, tSensors sensor, float vMax, float Ka, int t1, float jerkLimit, int cycleTime, int positionCycles) {
+	if (sensor < in1 || sensor > dgtl12)
+		return;
+
+	int *sensor_pointer = getSensorPointer(sensor);
+
+	updateMotionProfileCustom(motorPort, sensor_pointer, vMax, Ka, t1, jerkLimit, cycleTime, positionCycles);
+}
+
+void
+profileSetVMax (int motorPort, float vMax) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->vMax = vMax;
+	motorController [motorPort]->velocityController.Kp = 127.0 / vMax;
+}
+
+void
+profileSetKa (int motorPort, float Ka) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->Ka = Ka;
+}
+
+void
+profileSetAccelTime (int motorPort, int t1) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->accelTime = t1;
+}
+
+void
+profileSetCycleTime (int motorPort, int cycleTime) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->cycleTime = cycleTime;
+}
+
+void
+profileSetPositionFrequency (int motorPort, int positionCycles) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->positionCycles = positionCycles;
+}
+
+void
+profileSetJerkLimit (int motorPort, float jerkLimit) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	if (jerkLimit > 1.0)
+		jerkLimit = 1.0;
+	else if (jerkLimit < 0.0)
+		jerkLimit = 0.0;
+
+	motorController [motorPort]->jerkLimit = jerkLimit;
 }
 
 /**
@@ -464,6 +572,17 @@ setMotionSlave (int motorPort, int masterPort) {
 	if (motorController [masterPort] == NULL)
 		return;
 	motorController [motorPort] = motorController [masterPort];
+}
+
+void
+setMotionSlaveReversed (int motorPort, int masterPort) {
+	if (motorController [masterPort] == NULL)
+		return;
+
+	if (motorController[motorPort] != NULL) {
+		motorController[motorPort]->following = masterPort;
+		motorController[motorPort]->profileSetting = SETTING_MIRROR_REVERSE;
+	}
 }
 
 /**
@@ -626,13 +745,13 @@ profileUpdate (motionProfiler *profile) {
 	}
 	profile->lastComputeTime = nPgmTime;
 
-	if (nPgmTime < profile->moveStartTime + profile->t1) { // t0
+	if (nPgmTime < (unsigned long) (profile->moveStartTime + profile->t1)) { // t0
 		profile->accelSet = profile->jerk * moveTime / 1000.0;
-	} else if (nPgmTime > profile->moveStartTime + profile->t1 && nPgmTime < profile->moveStartTime + profile->t2) { // t1
+	} else if (nPgmTime > (unsigned long) (profile->moveStartTime + profile->t1) && nPgmTime < (unsigned long) (profile->moveStartTime + profile->t2)) { // t1
 		profile->accelSet = profile->aMax;
-	} else if (nPgmTime > profile->moveStartTime + profile->t2 && nPgmTime < profile->moveStartTime + profile->t3) { // t2
+	} else if (nPgmTime > (unsigned long) (profile->moveStartTime + profile->t2) && nPgmTime < (unsigned long) (profile->moveStartTime + profile->t3)) { // t2
 		profile->accelSet = profile->aMax - profile->jerk * (moveTime - profile->t2) / 1000.0;
-	} else if (nPgmTime > profile->moveStartTime + profile->t3) { // t3
+	} else if (nPgmTime > (unsigned long) (profile->moveStartTime + profile->t3)) { // t3
 		profile->accelSet = 0;
 		profile->velocitySet = profile->velocityTarget;
 	}
@@ -694,7 +813,7 @@ task motionPlanner () {
 
 			if (profile->profileSetting == SETTING_ACTIVE || profile->profileSetting == SETTING_ACTIVEPOSITION) {
 				for (int j = 0; j < MOVE_BUFFER_SIZE; ++j) {
-					if (profile->moveBuffer[j].moveNotExecuted && profile->moveBuffer[j].startTime < nPgmTime) {
+					if (profile->moveBuffer[j].moveNotExecuted && (unsigned long) (profile->moveBuffer[j].startTime) < nPgmTime) {
 						startMove (profile, profile->moveBuffer[j].targetVelocity, profile->moveBuffer[j].timeLimit);
 						profile->moveBuffer[j].moveNotExecuted = 0;
 
@@ -702,7 +821,7 @@ task motionPlanner () {
 					}
 				}
 
-				if (profile->profileSetting == SETTING_ACTIVEPOSITION && profile->t3 < nPgmTime && profile->velocitySet == 0 && !hasMoveQueued(profile))
+				if (profile->profileSetting == SETTING_ACTIVEPOSITION && (unsigned long) profile->t3 < nPgmTime && profile->velocitySet == 0 && !hasMoveQueued(profile))
 					profile->positionSet = profile->positionTarget;
 
 				profileUpdate (profile);
