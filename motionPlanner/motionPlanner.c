@@ -422,14 +422,14 @@ setSimpleMotionProfile (int motorPort, tSensors sensor, float vMax) {
 		return;
 
 	int *sensor_pointer = getSensorPointer(sensor);
-	setMotionProfileCustom (motorPort, sensor_pointer, vMax, 0.015, 600, 0.5, 20, 4);
+	setMotionProfileCustom (motorPort, sensor_pointer, vMax, 0.0, 600, 0.5, 20, 4);
 	setVelocityController (motorPort, 127.0/vMax, 0.0, 0.0, 50, 400);
 	setPositionController (motorPort, 5.0, 0.0, 0.0, 30, 150);
 }
 
 void
 setSimpleMotionProfileCustom (int motorPort, void *sensor, float vMax) {
-	setMotionProfileCustom (motorPort, sensor, vMax, 0.015, 600, 0.5, 20, 4);
+	setMotionProfileCustom (motorPort, sensor, vMax, 0.0, 600, 0.5, 20, 4);
 
 	setVelocityController (motorPort, 127.0/vMax, 0.0, 0.0, 50, 400);
 	setPositionController (motorPort, 5.0, 0.0, 0.0, 30, 150);
@@ -607,8 +607,6 @@ setPosition (int motorPort, int position) {
 	float rampDownDist = profile->accelTime * profile->vMax / 2000.0 * sgn (velocityError);
 	float cruiseTime = sgn (distance) * (distance - rampUpDist - rampDownDist) / profile->vMax * 1000.0;
 	long decelTime = cruiseTime + rampUpTime + nPgmTime;
-
-	writeDebugStreamLine ("%0.3f\n", rampUpDist);
 
 	clearMoveQueue(profile);
 	queueMoveWithTimeLimit (profile, nPgmTime, sgn(distance) * profile->vMax, decelTime - nPgmTime);
