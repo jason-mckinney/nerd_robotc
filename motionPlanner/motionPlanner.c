@@ -579,10 +579,11 @@ setMotionSlaveReversed (int motorPort, int masterPort) {
 	if (motorController [masterPort] == NULL)
 		return;
 
-	if (motorController[motorPort] != NULL) {
-		motorController[motorPort]->following = masterPort;
-		motorController[motorPort]->profileSetting = SETTING_MIRROR_REVERSE;
-	}
+	if (motorController[motorPort] == NULL)
+		setSimpleMotionProfileCustom (motorPort, motorController[masterPort]->sensor, motorController[masterPort]->vMax);
+
+	motorController[motorPort]->following = masterPort;
+	motorController[motorPort]->profileSetting = SETTING_MIRROR_REVERSE;
 }
 
 /**
@@ -668,6 +669,9 @@ updateMotors () {
 	for (i = 0; i < 10; ++i) {
 		if (motorController [i] == NULL)
 			continue;
+
+		if (motorController[i]->profileSetting == SETTING_MIRROR_REVERSE)
+			motorController[i]->motorOutput = -motorController[motorController[i]->following]->motorOutput;
 
 		if (motorController [i]->motorOutput > 127)
 			motorController [i]->motorOutput = 127;
