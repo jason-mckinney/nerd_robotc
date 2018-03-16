@@ -268,8 +268,11 @@ convert_to_float (void *var) {
 	int *i = var;
 	float *f = var;
 
-	if (*i == *var)
-		return *var;
+	if ((int)*f == 0)
+		return *i;
+
+	if ((int)*f == 0x80000000 && *i < 0)
+		return *i;
 
 	return *f;
 }
@@ -778,6 +781,26 @@ profile_update (motion_profiler *profile) {
 		profile->motor_output = 127;
 	else if (profile->motor_output < -127)
 		profile->motor_output = -127;
+}
+
+void
+logProfile(tMotor motorPort) {
+	if (motorPort < port1 || motorPort > port10)
+		return;
+
+	if (motorController[motorPort] == NULL)
+		return;
+
+	motionProfiler *profile = motorController[motorPort];
+
+	datalogDataGroupStart();
+	datalogAddValue(0, profile->positionSet);
+	datalogAddValue(1, convert_to_float(profile->sensor));
+	datalogAddValue(2, profile->velocitySet);
+	datalogAddValue(3, profile->velocityRead);
+	datalogAddValue(4, profile->accelSet);
+	datalogAddValue(5, profile->motorOutput);
+	datalogDataGroupEnd();
 }
 
 /// @private
