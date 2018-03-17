@@ -222,6 +222,7 @@ struct motionProfile {
 	int velocityRead;
 
 	char profileSetting;
+	short sensorIsFloat;
 	short motorOutput;
 	float positionOut;
 	float lastSensorValue;
@@ -294,20 +295,38 @@ motionProfile* uniqueControllers [10];
 int rawSensorValue [20];
 
 float
-convert_to_float (void *var) {
-	if (var == NULL)
+getSensorValue (tMotor motorPort) {
+	if (motorPort < port1 || motorPort > port10)
 		return 0;
 
-	int *i = var;
-	float *f = var;
+	if (motorController[motorPort] == NULL)
+		return 0;
 
-	if ((int)*f == 0) //-1 < f < 1 or var is int >= 0
-		return *i;
+	motionProfile *profile = motorController[motorPort];
+	void *var = profile->sensor;
 
-	if ((int)*f == 0x80000000 && *i < 0) //var is int < 0
-		return *i;
+	if (profile->sensorIsFloat) {
+		float *f = var;
+		return *f;
+	} else {
+		int *i = var;
+		return (float)*i;
+	}
+}
 
-	return *f;
+float getSensorValue (motionProfile *profile) {
+	if (profile == NULL)
+		return 0;
+
+	void *var = profile->sensor;
+
+	if (profile->sensorIsFloat) {
+		float *f = var;
+		return *f;
+	} else {
+		int *i = var;
+		return (float)*i;
+	}
 }
 
 void
@@ -410,7 +429,7 @@ createMotionProfile (tMotor motorPort) {
 	controller->motorOutput = 0;
 
 	if (sensor != -1)
-	controller->lastSensorValue = convert_to_float(controller->sensor);
+	controller->lastSensorValue = getSensorValue(motorPort);
 
 	controller->lastMeasureTime = nPgmTime;
 	controller->lastComputeTime = nPgmTime;
@@ -440,8 +459,14 @@ void profileSetSensor (tMotor motorPort, tSensors sensor) {
   motorController[motorPort]->sensor = getSensorPointer (sensor);
 }
 
-void profileSetSensorPtr (tMotor motorPort, void *sensor) {
+void profileSetSensorPtr (tMotor motorPort, int *sensor) {
   motorController[motorPort]->sensor = sensor;
+  motorController[motorPort]->sensorIsFloat = 0x0;
+}
+
+void profileSetSensorPtr (tMotor motorPort, float *sensor) {
+  motorController[motorPort]->sensor = sensor;
+  motorController[motorPort]->sensorIsFloat = 0x1;
 }
 
 void
@@ -536,7 +561,7 @@ profileGetPosition (tMotor motorPort) {
   if (motorController [motorPort] == NULL)
 		return -1;
 
-  return convert_to_float (motorController[motorPort]->sensor);
+  return getSensorValue (motorPort);
 }
 
 short
@@ -627,7 +652,7 @@ profileGoTo (tMotor motorPort, float position) {
 
 	motionProfile *profile = motorController [motorPort];
 
-	float distance = position - convert_to_float(profile->sensor);
+	float distance = position - getSensorValue(motorPort);
 	float initialVelocity = profile->velocityRead;
 	float velocityError = sgn (distance) * profile->vMax - initialVelocity;
 	float rampUpTime = fabs((sgn(distance) * profile->vMax - initialVelocity)/profile->vMax * profile->accelTime);
@@ -680,8 +705,8 @@ profileSetVelocity (tMotor motorPort, float velocity) {
 
 	motionProfile *profile = motorController[motorPort];
 	profile->profileSetting = SETTING_ACTIVE;
-	profile->positionSet = convert_to_float (profile->sensor);
-	profile->positionTarget = convert_to_float (profile->sensor);
+	profile->positionSet = getSensorValue(profile);
+	profile->positionTarget = getSensorValue (profile);
 
 	clearMoveQueue (profile);
 	queueMove (profile, nPgmTime, velocity);
@@ -713,7 +738,7 @@ updateMotors () {
 void
 measureVelocity (motionProfile *profile) {
 	float deltaT = (nPgmTime - profile->lastMeasureTime)*0.001;
-	int sensorV = convert_to_float (profile->sensor);
+	float sensorV = getSensorValue(profile);
 
 	//get sensor velocity, ticks per second
 	float sensorRate = deltaT == 0 ? 0 : (sensorV - profile->lastSensorValue) / deltaT;
@@ -791,7 +816,7 @@ profileUpdate (motionProfile *profile) {
 
 	//do position PID if cycle includes it
 	if (profile->cycleCounter % profile->positionCycles == 0) {
-	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, convert_to_float (profile->sensor), profile->velocitySet);
+	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, getSensorValue (profile), profile->velocitySet);
 	}
 	profile->cycleCounter++;
 
@@ -820,7 +845,7 @@ profileLog(tMotor motorPort) {
 
 	datalogDataGroupStart();
 	datalogAddValue(0, profile->positionSet);
-	datalogAddValue(1, convert_to_float (profile->sensor));
+	datalogAddValue(1, getSensorValue (profile));
 	datalogAddValue(2, profile->velocitySet);
 	datalogAddValue(3, profile->velocityRead);
 	datalogAddValue(4, profile->accelSet);
