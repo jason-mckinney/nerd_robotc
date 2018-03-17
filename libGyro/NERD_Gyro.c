@@ -14,12 +14,12 @@ typedef struct {
 } Gyro;
 
 //ignore data within n standard deviations of no motion average
-#define GYRO_STD_DEVS 3
+#define GYRO_STD_DEVS 5
 
-#define GYRO_OVERSAMPLE 1
+#define GYRO_OVERSAMPLE 2
 
 //points or time in mSec that the gyro calibrates for
-#define GYRO_CALIBRATION_POINTS 2000
+#define GYRO_CALIBRATION_POINTS 1500
 
 float calibration_buffer [GYRO_CALIBRATION_POINTS];
 
