@@ -479,6 +479,14 @@ profileSetMaxVelocity (tMotor motorPort, float maxVelocity) {
 }
 
 void
+profileSetSpeedLimit (tMotor motorPort, float speedLimit) {
+	if (motorController [motorPort] == NULL)
+		return;
+
+	motorController [motorPort]->vMax = speedLimit;
+}
+
+void
 profileSetAccelerationGain (tMotor motorPort, float kA) {
 	if (motorController [motorPort] == NULL)
 		return;
@@ -570,6 +578,17 @@ profileGetMotorOutput (tMotor motorPort) {
 		return -1;
 
   return motorController[motorPort]->motorOutput;
+}
+
+short
+profileMoveComplete (tMotor motorPort) {
+	if (motorPort < port1 || motorPort > port10)
+		return -1;
+
+	if (motorController[motorPort] == NULL)
+		return -1;
+
+	return !hasMoveQueued (motorController[motorPort]);
 }
 
 /**
@@ -675,7 +694,7 @@ profileGoTo (tMotor motorPort, float position) {
  * @param output  output value to set
  */
 void
-profileSetMotorOutput (tMotor motorPort, int motorOutput) {
+profileSetMotorOutput (tMotor motorPort, short motorOutput) {
 	if (motorController [motorPort] == NULL)
 		return;
 
