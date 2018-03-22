@@ -1,3 +1,43 @@
+/* -----------------------------------------------------------------------------
+																		MIT License
+
+													Copyright (c) 2018 Jason McKinney
+
+	Permission is hereby granted, free of charge, to any person obtaining a copy
+	of this software and associated documentation files (the "Software"), to deal
+	in the Software without restriction, including without limitation the rights
+	to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+	copies of the Software, and to permit persons to whom the Software is
+	furnished to do so, subject to the following conditions:
+
+	The above copyright notice and this permission notice shall be included in all
+	copies or substantial portions of the Software.
+
+	THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+	IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+	FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+	AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+	LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+	OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+	SOFTWARE.
+
+--------------------------------------------------------------------------------
+	motionPlanner.c
+
+	Created:  2017-11-09
+	
+	Minor Revisions:
+	-	v1.0.0  Initial Release
+
+--------------------------------------------------------------------------------	
+	The author asks that proper attribution be given for this software should the
+	source be unavailable (for example, if compiled into a binary/used on a robot).
+
+	The author can be contacted via email at jason_at_jmmckinney_dot_net
+	or on the VEX Forum as jmmckinney.
+-------------------------------------------------------------------------------- */
+
+
 #ifndef TRUESPEED
 #define TRUESPEED
 
@@ -287,7 +327,9 @@ short profileGetMotorOutput (tMotor motorPort);
 
 void profileResetPosition (tMotor motorPort); //
 
-motionProfile profilerPool[10]; //  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
+//  because of ROBOTC not being true C we need to allocate space for profilers at compile time instead of instantiating them as we need them
+//  ROBOTC is not a robot, nor is it C...
+motionProfile profilerPool[10];
 motionProfile* motorController [10];
 motionProfile* uniqueControllers [10];
 
