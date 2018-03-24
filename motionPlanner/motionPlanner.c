@@ -696,8 +696,14 @@ void profileResetPosition (tMotor motorPort) {
 	if (motorController[motorPort]->sensor == NULL)
 		return;
 
-	*(motorController [motorPort]->sensor) = 0;
-  motorController [motorPort]->lastSensorValue = 0 - motorController [motorPort]->velocityRead * motorController [motorPort]->cycleTime * 0.001;
+	if(motorController[motorPort]->sensorIsFloat) {
+		float *ptr = motorController [motorPort]->sensor;
+		*ptr = 0.0;
+	} else {
+		int *ptr = motorController [motorPort]->sensor;
+		*ptr = 0;
+	}
+	motorController [motorPort]->lastSensorValue = 0 - motorController [motorPort]->velocityRead * motorController [motorPort]->cycleTime * 0.001;
 }
 
 /**
@@ -713,6 +719,7 @@ profileGoTo (tMotor motorPort, float position) {
 
 	motionProfile *profile = motorController [motorPort];
 
+  profile->positionSet = getSensorValue(motorPort);
 	float distance = position - getSensorValue(motorPort);
 	float initialVelocity = profile->velocityRead;
 	float velocityError = sgn (distance) * profile->vMax - initialVelocity;
