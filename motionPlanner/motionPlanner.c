@@ -77,8 +77,6 @@ typedef struct {
 	float Kp;
 	float Ki;
 	float Kd;
-	float innerIntegralBand;
-	float outerIntegralBand;
 	float sigma;
 	float lastValue;
 	unsigned long lastTime;
@@ -96,12 +94,10 @@ typedef struct {
  * outerIntegralBand  outer bound of PID I summing cutoff
  */
 void
-pidInit (PID pid, float Kp, float Ki, float Kd, float innerIntegralBand, float outerIntegralBand) {
+pidInit (PID pid, float Kp, float Ki, float Kd) {
 	pid.Kp = Kp;
 	pid.Ki = Ki;
 	pid.Kd = Kd;
-	pid.innerIntegralBand = innerIntegralBand;
-	pid.outerIntegralBand = outerIntegralBand;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -117,8 +113,6 @@ void pidInitCopy (PID pid, PID toCopy) {
 	pid.Kp = toCopy.Ki;
 	pid.Ki = toCopy.Ki;
 	pid.Kd = toCopy.Kd;
-	pid.innerIntegralBand = toCopy.innerIntegralBand;
-	pid.outerIntegralBand = toCopy.outerIntegralBand;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -134,26 +128,37 @@ void pidInitCopy (PID pid, PID toCopy) {
  * @return  output value of the control loop
  */
 float
-pidCalculate (PID pid, int setPoint, int processVariable) {
+pidCalculate (PID pid, float setPoint, float processVariable) {
 	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
-	if(deltaTime > 0)
+	
+  if(deltaTime > 0) {
 		deltaPV = (processVariable - pid.lastValue) / deltaTime;
-	pid.lastValue = processVariable;
+  }
+	
+  pid.lastValue = processVariable;
 
 	float error = setPoint - processVariable;
 
-	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
-		pid.sigma += error * deltaTime;
+  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
 
-	if (fabs (error) > pid.outerIntegralBand)
-		pid.sigma = 0;
+	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
+    pid.sigma += error * deltaTime;
+  }
 
-	float output = error * pid.Kp
+	output = error * pid.Kp
 					+ pid.sigma * pid.Ki
 					- deltaPV * pid.Kd;
+
+  if (output > 1.0) {
+    output = 1.0;
+  }
+
+  if (output < -1.0) {
+    output = -1.0;
+  }
 
 	return output;
 }
@@ -169,26 +174,37 @@ pidCalculate (PID pid, int setPoint, int processVariable) {
  * @return  the output value of the control loop
  */
 float
-pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int velocitySet) {
+pidCalculateWithVelocitySet (PID pid, float setPoint, float processVariable, float velocitySet) {
 	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
-	if(deltaTime > 0)
+	
+  if(deltaTime > 0) {
 		deltaPV = (processVariable - pid.lastValue) / deltaTime + velocitySet;
-	pid.lastValue = processVariable;
+  }
+	
+  pid.lastValue = processVariable;
 
 	float error = setPoint - processVariable;
 
-	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
-		pid.sigma += error * deltaTime;
+  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
 
-	if (fabs (error) > pid.outerIntegralBand)
-		pid.sigma = 0;
+	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
+    pid.sigma += error * deltaTime;
+  }
 
-	float output = error * pid.Kp
+	output = error * pid.Kp
 					+ pid.sigma * pid.Ki
 					- deltaPV * pid.Kd;
+
+  if (output > 1.0) {
+    output = 1.0;
+  }
+
+  if (output < -1.0) {
+    output = -1.0;
+  }
 
 	return output;
 }
@@ -203,26 +219,37 @@ pidCalculateWithVelocitySet (PID pid, int setPoint, int processVariable, int vel
  * @return  the output value of the control loop
  */
 float
-pidCalculateVelocity (PID pid, int setPoint, int processVariable) {
+pidCalculateVelocity (PID pid, float setPoint, float processVariable) {
 	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
-	if(deltaTime > 0)
+	
+  if(deltaTime > 0) {
 		deltaPV = (processVariable - pid.lastValue) / deltaTime;
-	pid.lastValue = processVariable;
+  }
+	
+  pid.lastValue = processVariable;
 
 	float error = setPoint - processVariable;
 
-	if(fabs(error) > pid.innerIntegralBand && fabs(error) < pid.outerIntegralBand)
-		pid.sigma += error * deltaTime;
+  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
 
-	if (fabs (error) > pid.outerIntegralBand)
-		pid.sigma = 0;
+	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
+    pid.sigma += error * deltaTime;
+  }
 
-	float output = setPoint * pid.Kp
+	output = error * pid.Kp
 					+ pid.sigma * pid.Ki
 					- deltaPV * pid.Kd;
+
+  if (output > 1.0) {
+    output = 1.0;
+  }
+
+  if (output < -1.0) {
+    output = -1.0;
+  }
 
 	return output;
 }
