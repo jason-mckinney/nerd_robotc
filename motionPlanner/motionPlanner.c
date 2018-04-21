@@ -25,11 +25,12 @@
 	motionPlanner.c
 
 	Created:  2017-11-09
-	
+
 	Minor Revisions:
 	-	v1.0.0  Initial Release
+	- v1.1.0  Changed velocity filter and PID algorithm
 
---------------------------------------------------------------------------------	
+--------------------------------------------------------------------------------
 	The author asks that proper attribution be given for this software should the
 	source be unavailable (for example, if compiled into a binary/used on a robot).
 
@@ -77,6 +78,7 @@ typedef struct {
 	float Kp;
 	float Ki;
 	float Kd;
+	float Kf;
 	float sigma;
 	float lastValue;
 	unsigned long lastTime;
@@ -98,6 +100,17 @@ pidInit (PID pid, float Kp, float Ki, float Kd) {
 	pid.Kp = Kp;
 	pid.Ki = Ki;
 	pid.Kd = Kd;
+	pid.Kf = 0.0;
+	pid.sigma = 0;
+	pid.lastValue = 0;
+	pid.lastTime = nPgmTime;
+}
+
+void pidInit (PID pid, float Kp, float Ki, float Kd, float Kf) {
+	pid.Kp = Kp;
+	pid.Ki = Ki;
+	pid.Kd = Kd;
+	pid.Kf = Kf;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -113,6 +126,7 @@ void pidInitCopy (PID pid, PID toCopy) {
 	pid.Kp = toCopy.Ki;
 	pid.Ki = toCopy.Ki;
 	pid.Kd = toCopy.Kd;
+	pid.Kf = toCopy.Kf;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -133,16 +147,16 @@ pidCalculate (PID pid, float setPoint, float processVariable) {
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
-	
+
   if(deltaTime > 0) {
 		deltaPV = (processVariable - pid.lastValue) / deltaTime;
   }
-	
+
   pid.lastValue = processVariable;
 
 	float error = setPoint - processVariable;
 
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
+  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd + setPoint * pid.Kf;
 
 	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
     pid.sigma += error * deltaTime;
@@ -150,98 +164,8 @@ pidCalculate (PID pid, float setPoint, float processVariable) {
 
 	output = error * pid.Kp
 					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
-
-  if (output > 1.0) {
-    output = 1.0;
-  }
-
-  if (output < -1.0) {
-    output = -1.0;
-  }
-
-	return output;
-}
-
-/**
- * calculate PID output while velocity control is active. The velocity set point will be subtracted from the time derivative of the error
- *
- * @param pid  the PID controller to use for the calculation
- * @param setPoint  the set point of the system
- * @param processVariable  the value of the feedback sensor in the system
- * @param velocitySet  the velocity set point of the system
- *
- * @return  the output value of the control loop
- */
-float
-pidCalculateWithVelocitySet (PID pid, float setPoint, float processVariable, float velocitySet) {
-	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
-	pid.lastTime = nPgmTime;
-
-	float deltaPV = 0;
-	
-  if(deltaTime > 0) {
-		deltaPV = (processVariable - pid.lastValue) / deltaTime + velocitySet;
-  }
-	
-  pid.lastValue = processVariable;
-
-	float error = setPoint - processVariable;
-
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
-
-	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
-    pid.sigma += error * deltaTime;
-  }
-
-	output = error * pid.Kp
-					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
-
-  if (output > 1.0) {
-    output = 1.0;
-  }
-
-  if (output < -1.0) {
-    output = -1.0;
-  }
-
-	return output;
-}
-
-/**
- * calculate PID output for velocity control using feedforward instead of an error calculation, but still allowing for I and D components.
- *
- * @param pid  the PID controller to use for the calculation
- * @param setPoint  the set point of the system
- * @param processVariable  the value of the feedback sensor in the system
- *
- * @return  the output value of the control loop
- */
-float
-pidCalculateVelocity (PID pid, float setPoint, float processVariable) {
-	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
-	pid.lastTime = nPgmTime;
-
-	float deltaPV = 0;
-	
-  if(deltaTime > 0) {
-		deltaPV = (processVariable - pid.lastValue) / deltaTime;
-  }
-	
-  pid.lastValue = processVariable;
-
-	float error = setPoint - processVariable;
-
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
-
-	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
-    pid.sigma += error * deltaTime;
-  }
-
-	output = error * pid.Kp
-					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
+					- deltaPV * pid.Kd
+					+ setPoint * pid.Kf;
 
   if (output > 1.0) {
     output = 1.0;
@@ -285,7 +209,7 @@ struct motionProfile {
 	float Ka;
 	float jerkLimit;
 	void *sensor;
-	int velocityFilter [5];
+	int velocityFilter [6];
 	int velocityRead;
 
 	char profileSetting;
@@ -310,6 +234,10 @@ struct motionProfile {
 	float vMax; //max rate of system, in sensor units/second
 	int accelTime; //time for velocity ramping
 	int following; //motor port to mirror
+
+	float ratePrediction;
+	float rateCovariance;
+	float rateStdDev;
 
 	// + jerk
 	long t1; //time to set jerk to 0
@@ -511,17 +439,18 @@ createMotionProfile (tMotor motorPort) {
 	controller->velocityFilter[2] = 0;
 	controller->velocityFilter[3] = 0;
 	controller->velocityFilter[4] = 0;
+	controller->velocityFilter[5] = 0;
 
 	controller->accelTime = 1000;
 	controller->t1 = 0;
 	controller->t2 = 0;
 	controller->t3 = 0;
 
-	controller->cycleTime = 20;
-	controller->positionCycles = 4;
+	controller->cycleTime = 15;
+	controller->positionCycles = 2;
 
-	pidInit (controller->positionController, 3.0, 0, 0, 30, 150);
-	pidInit (controller->velocityController, 0, 0, 0, 50, 500);
+	pidInit (controller->positionController, 3.0, 0, 0);
+	pidInit (controller->velocityController, 0, 0, 0);
 }
 
 void profileSetSensor (tMotor motorPort, tSensors sensor) {
@@ -544,7 +473,7 @@ profileSetMaxVelocity (tMotor motorPort, float maxVelocity) {
 		return;
 
 	motorController [motorPort]->vMax = maxVelocity;
-	motorController [motorPort]->velocityController.Kp = 127.0 / maxVelocity;
+	motorController [motorPort]->velocityController.Kf = 1.0 / maxVelocity;
 }
 
 void
@@ -671,12 +600,12 @@ profileMoveComplete (tMotor motorPort) {
  * @param outerBand  the outer integral deadBand value
  */
 void
-profileSetPositionController (tMotor motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
+profileSetPositionController (tMotor motorPort, float Kp, float Ki, float Kd) {
 	if (motorController [motorPort] == NULL)
 		return;
 
 	motionProfile *profile = motorController [motorPort];
-	pidInit (profile->positionController, Kp, Ki, Kd, innerBand, outerBand);
+	pidInit (profile->positionController, Kp*0.001, Ki*0.001, Kd*0.001, 0.0);
 }
 
 /**
@@ -690,12 +619,12 @@ profileSetPositionController (tMotor motorPort, float Kp, float Ki, float Kd, fl
  * @param outerBand  the outer integral deadBand value
  */
 void
-profileSetVelocityController (tMotor motorPort, float Kp, float Ki, float Kd, float innerBand, float outerBand) {
+profileSetVelocityController (tMotor motorPort, float Kp, float Ki, float Kd) {
 	if (motorController [motorPort] == NULL)
 		return;
 
 	motionProfile *profile = motorController [motorPort];
-	pidInit (profile->velocityController, Kp, Ki, Kd, innerBand, outerBand);
+	pidInit (profile->velocityController, Kp*0.001, Ki*0.001, Kd*0.001, 1.0 / profile->vMax);
 }
 
 
@@ -835,15 +764,22 @@ measureVelocity (motionProfile *profile) {
 	float deltaT = (nPgmTime - profile->lastMeasureTime)*0.001;
 	float sensorV = getSensorValue(profile);
 
-	//get sensor velocity, ticks per second
-	float sensorRate = deltaT == 0 ? 0 : (sensorV - profile->lastSensorValue) / deltaT;
+	if (deltaT == 0)
+		return;
 
-	for (int j = 4; j > 0; --j) {
+	//get sensor velocity, ticks per second
+	float measurement = (sensorV - profile->lastSensorValue) / deltaT;
+
+	for (int j = 5; j > 0; --j) {
 		profile->velocityFilter [j] = profile->velocityFilter [j-1];
 	}
-	profile->velocityFilter [0] = sensorRate;
+	profile->velocityFilter [0] = measurement;
 
-	sensorRate = profile->velocityFilter [0] * 0.5 + profile->velocityFilter [1] * 0.25 + profile->velocityFilter [2] * 0.125 + profile->velocityFilter [3] * 0.0625 + profile->velocityFilter [4] * 0.0625;
+	float sensorRate = 0;
+	for (int i = 0; i < 6; ++i) {
+		sensorRate += profile->velocityFilter[i] / 6;
+	}
+
 	profile->velocityRead = sensorRate;
 	profile->lastSensorValue = sensorV;
 }
@@ -911,12 +847,15 @@ profileUpdate (motionProfile *profile) {
 
 	//do position PID if cycle includes it
 	if (profile->cycleCounter % profile->positionCycles == 0) {
-	 	profile->positionOut = pidCalculateWithVelocitySet (profile->positionController, profile->positionSet, getSensorValue (profile), profile->velocitySet);
+	 	profile->positionOut = profile->vMax * pidCalculate (profile->positionController, profile->positionSet, getSensorValue (profile));
 	}
 	profile->cycleCounter++;
 
+	if (profile->profileSetting != SETTING_ACTIVEPOSITION)
+		profile->positionOut = 0;
+
 	//do velocity PID
-	float velocityOut = pidCalculateVelocity (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
+	float velocityOut = 127 * pidCalculate (profile->velocityController, profile->positionOut + profile->velocitySet, profile->velocityRead) + profile->accelSet * profile->Ka;
 	//float velocityOut =  profile->velocitySet * profile->Kv + profile->accelSet * profile->Ka;//pidCalculate (profile->velocityController, profile->velocitySet + profile->positionOut, profile->velocityRead);
 
 	//set motor PWM output
@@ -945,6 +884,7 @@ profileLog(tMotor motorPort) {
 	datalogAddValue(3, profile->velocityRead);
 	datalogAddValue(4, profile->accelSet);
 	datalogAddValue(5, profile->motorOutput);
+	datalogAddValue(6, profile->ratePrediction);
 	datalogDataGroupEnd();
 }
 

@@ -25,11 +25,12 @@
 	NERD_PID.c
 
 	Created:  2016-06-30
-	
+
 	Minor Revisions:
 	-	v1.0.0  Initial Release
+	- v1.1.0  Changed integral windup algorithm, pidCalculate() outputs in range [-1, 1]
 
---------------------------------------------------------------------------------	
+--------------------------------------------------------------------------------
 	The author asks that proper attribution be given for this software should the
 	source be unavailable (for example, if compiled into a binary/used on a robot).
 
@@ -48,6 +49,7 @@ typedef struct {
 	float Kp;
 	float Ki;
 	float Kd;
+	float Kf;
 	float sigma;
 	float lastValue;
 	unsigned long lastTime;
@@ -69,6 +71,17 @@ pidInit (PID pid, float Kp, float Ki, float Kd) {
 	pid.Kp = Kp;
 	pid.Ki = Ki;
 	pid.Kd = Kd;
+	pid.Kf = 0.0;
+	pid.sigma = 0;
+	pid.lastValue = 0;
+	pid.lastTime = nPgmTime;
+}
+
+void pidInit (PID pid, float Kp, float Ki, float Kd, float Kf) {
+	pid.Kp = Kp;
+	pid.Ki = Ki;
+	pid.Kd = Kd;
+	pid.Kf = Kf;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -84,6 +97,7 @@ void pidInitCopy (PID pid, PID toCopy) {
 	pid.Kp = toCopy.Ki;
 	pid.Ki = toCopy.Ki;
 	pid.Kd = toCopy.Kd;
+	pid.Kf = toCopy.Kf;
 	pid.sigma = 0;
 	pid.lastValue = 0;
 	pid.lastTime = nPgmTime;
@@ -104,16 +118,16 @@ pidCalculate (PID pid, float setPoint, float processVariable) {
 	pid.lastTime = nPgmTime;
 
 	float deltaPV = 0;
-	
+
   if(deltaTime > 0) {
 		deltaPV = (processVariable - pid.lastValue) / deltaTime;
   }
-	
+
   pid.lastValue = processVariable;
 
 	float error = setPoint - processVariable;
 
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
+  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd + setPoint * pid.Kf;
 
 	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
     pid.sigma += error * deltaTime;
@@ -121,98 +135,8 @@ pidCalculate (PID pid, float setPoint, float processVariable) {
 
 	output = error * pid.Kp
 					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
-
-  if (output > 1.0) {
-    output = 1.0;
-  }
-
-  if (output < -1.0) {
-    output = -1.0;
-  }
-
-	return output;
-}
-
-/**
- * calculate PID output while velocity control is active. The velocity set point will be subtracted from the time derivative of the error
- *
- * @param pid  the PID controller to use for the calculation
- * @param setPoint  the set point of the system
- * @param processVariable  the value of the feedback sensor in the system
- * @param velocitySet  the velocity set point of the system
- *
- * @return  the output value of the control loop
- */
-float
-pidCalculateWithVelocitySet (PID pid, float setPoint, float processVariable, float velocitySet) {
-	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
-	pid.lastTime = nPgmTime;
-
-	float deltaPV = 0;
-	
-  if(deltaTime > 0) {
-		deltaPV = (processVariable - pid.lastValue) / deltaTime + velocitySet;
-  }
-	
-  pid.lastValue = processVariable;
-
-	float error = setPoint - processVariable;
-
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
-
-	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
-    pid.sigma += error * deltaTime;
-  }
-
-	output = error * pid.Kp
-					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
-
-  if (output > 1.0) {
-    output = 1.0;
-  }
-
-  if (output < -1.0) {
-    output = -1.0;
-  }
-
-	return output;
-}
-
-/**
- * calculate PID output for velocity control using feedforward instead of an error calculation, but still allowing for I and D components.
- *
- * @param pid  the PID controller to use for the calculation
- * @param setPoint  the set point of the system
- * @param processVariable  the value of the feedback sensor in the system
- *
- * @return  the output value of the control loop
- */
-float
-pidCalculateVelocity (PID pid, float setPoint, float processVariable) {
-	float deltaTime = (nPgmTime - pid.lastTime)*0.001;
-	pid.lastTime = nPgmTime;
-
-	float deltaPV = 0;
-	
-  if(deltaTime > 0) {
-		deltaPV = (processVariable - pid.lastValue) / deltaTime;
-  }
-	
-  pid.lastValue = processVariable;
-
-	float error = setPoint - processVariable;
-
-  float output = error * pid.Kp + pid.sigma * pid.Ki - deltaPV * pid.Kd;
-
-	if (!(fabs(output) >= 1.0 && ((error >= 0 && pid.sigma >= 0) || (error < 0 && pid.sigma < 0)))) {
-    pid.sigma += error * deltaTime;
-  }
-
-	output = error * pid.Kp
-					+ pid.sigma * pid.Ki
-					- deltaPV * pid.Kd;
+					- deltaPV * pid.Kd
+					+ setPoint * pid.Kf;
 
   if (output > 1.0) {
     output = 1.0;
